@@ -68,7 +68,7 @@
         .product-price { font-size: 1.05rem; font-weight: 700; color: #d32f2f; margin-bottom: 10px; }
         .btn-add-cart { margin-top: auto; background-color: var(--primary-color); color: white; border: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; }
 
-        /* UI Login (ឌីហ្សាញដូចក្នុងរូបភាព) */
+        /* UI Login (ឌីហ្សាញដូចរូបភាព) */
         .login-card {
             background: white; border-radius: 16px; padding: 35px 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; margin: 30px auto;
@@ -82,7 +82,6 @@
         .login-title { font-size: 1.4rem; font-weight: 700; color: #1a1a1a; margin-bottom: 6px; }
         .login-subtitle { font-size: 0.85rem; color: #8c98a4; margin-bottom: 25px; }
         
-        /* Google Sign-in Button Design */
         .btn-google {
             background-color: #3b66f5; color: white; border: none;
             width: 100%; padding: 12px 16px; border-radius: 10px;
@@ -91,7 +90,6 @@
             box-shadow: 0 4px 12px rgba(59, 102, 245, 0.3); transition: 0.2s;
         }
         .btn-google:hover { background-color: #2a52d8; }
-        .btn-google i { font-size: 1.1rem; }
 
         .btn-primary { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
         .btn-danger { background: #d32f2f; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 15px; }
@@ -105,7 +103,7 @@
         .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
         .form-control { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; }
 
-        /* Fixed Bottom Nav (នៅខាងក្រោមជានិច្ច) */
+        /* Fixed Bottom Nav */
         .bottom-nav { 
             position: fixed; bottom: 0; left: 0; width: 100%; height: var(--nav-height); 
             background-color: var(--card-bg); box-shadow: 0 -2px 10px rgba(0,0,0,0.1); 
@@ -143,7 +141,6 @@
             </div>
         </div>
 
-        <!-- Dynamic Main Content -->
         <div id="mainContent">
             <div class="product-grid" id="productGrid"></div>
         </div>
@@ -215,12 +212,11 @@
         </button>
     </nav>
 
-    <!-- Firebase SDK (Version 10 Modular) -->
+    <!-- Firebase SDK (លុប Storage SDK ចេញ ដើម្បីកុំឲ្យមានបញ្ហា CORS) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js";
 
         // ⚠️ ដាក់ Firebase Config របស់អ្នកនៅទីនេះ ⚠️
         const firebaseConfig = {
@@ -234,20 +230,17 @@
   measurementId: "G-NPJ6GBZZHN"
 };
 
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
         const googleProvider = new GoogleAuthProvider();
 
-        // Global Assignment
         window.db = db;
         window.auth = auth;
-        window.storage = storage;
         window.googleProvider = googleProvider;
-        window.fb = { signInWithPopup, signOut, onAuthStateChanged, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, ref, uploadBytes, getDownloadURL };
+        window.fb = { signInWithPopup, signOut, onAuthStateChanged, collection, addDoc, getDocs, doc, deleteDoc, updateDoc };
 
-        // តាមដាន status Admin
         onAuthStateChanged(auth, (user) => {
             window.currentUser = user;
             if (document.getElementById('profileView')) {
@@ -262,7 +255,16 @@
         let cartCount = 0;
         let activeCategory = 'ថ្នាំជំនួយ';
 
-        // Render Cards
+        // អនុគមន៍បំប្លែង File រូបភាពទៅជា Base64 (មិនឆ្លងកាត់ Firebase Storage ឡើយ)
+        function convertFileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
         function renderProducts(items) {
             const container = document.getElementById('mainContent');
             container.innerHTML = '<div class="product-grid" id="productGrid"></div>';
@@ -322,7 +324,6 @@
             renderProfileView();
         }
 
-        // Profile View & UI Login ដូចរូបភាព
         function renderProfileView() {
             const mainContent = document.getElementById('mainContent');
             const user = window.currentUser;
@@ -344,14 +345,13 @@
                     </div>
                 `;
             } else {
-                // UI ដូចរូបភាពបេះបិទ
                 mainContent.innerHTML = `
                     <div class="login-card" id="profileView">
                         <div class="user-avatar-icon">
                             <i class="fa-solid fa-user"></i>
                         </div>
                         <h2 class="login-title">ចូលប្រើប្រាស់ប្រព័ន្ធ</h2>
-                        <p class="login-subtitle">ចូលប្រើប្រាស់ដើម្បីទទួលបានមុខងារបន្ថែមក្នុងការគ្រប់គ្រងបទចម្រៀង</p>
+                        <p class="login-subtitle">ចូលប្រើប្រាស់ដើម្បីទទួលបានមុខងារបន្ថែមក្នុងការគ្រប់គ្រងទំនិញ</p>
                         
                         <button class="btn-google" onclick="loginWithGoogle()">
                             <i class="fa-brands fa-google"></i> ចូលប្រើជាមួយ Google
@@ -361,7 +361,6 @@
             }
         }
 
-        // Login ជាមួយ Google Sign-In Popup
         async function loginWithGoogle() {
             try {
                 await window.fb.signInWithPopup(window.auth, window.googleProvider);
@@ -421,6 +420,7 @@
             }
         }
 
+        // អនុគមន៍រក្សាទុកទំនិញ ដោយបំប្លែងរូបភាពទៅជា Base64
         async function handleProductSave(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSaveProd');
@@ -436,10 +436,9 @@
             try {
                 let imgUrl = null;
 
+                // ប្រសិនបើមានជ្រើសរើសរូបភាព បំប្លែងវាទៅជា Base64 String
                 if (file) {
-                    const storageRef = window.fb.ref(window.storage, 'products/' + Date.now() + '_' + file.name);
-                    await window.fb.uploadBytes(storageRef, file);
-                    imgUrl = await window.fb.getDownloadURL(storageRef);
+                    imgUrl = await convertFileToBase64(file);
                 }
 
                 if (id) {
@@ -448,7 +447,7 @@
                     await window.fb.updateDoc(window.fb.doc(window.db, "products", id), updateData);
                     alert("កែប្រែទំនិញជោគជ័យ!");
                 } else {
-                    if (!imgUrl) imgUrl = "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=400";
+                    if (!imgUrl) imgUrl = "https://via.placeholder.com/400";
                     await window.fb.addDoc(window.fb.collection(window.db, "products"), {
                         name, category, price: Number(price), img: imgUrl, createdAt: new Date()
                     });
