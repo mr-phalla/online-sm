@@ -43,8 +43,16 @@
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 15px; }
-        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .section-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+        @media(min-width: 600px) { .section-header { flex-direction: row; justify-content: space-between; align-items: center; } }
         .section-title { font-size: 1.1rem; font-weight: 700; color: #1b5e20; display: flex; align-items: center; gap: 8px; }
+
+        /* Search and Sort Toolbar */
+        .toolbar { display: flex; gap: 10px; width: 100%; max-width: 500px; }
+        .search-box { position: relative; flex: 1; }
+        .search-box input { width: 100%; padding: 8px 12px 8px 35px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.9rem; outline: none; }
+        .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #777; }
+        .sort-select { padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.85rem; outline: none; background: white; }
 
         /* Product Grid */
         .product-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
@@ -53,22 +61,25 @@
 
         /* Card Styling */
         .card { background-color: var(--card-bg); border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.06); display: flex; flex-direction: column; position: relative; }
-        .card-img-wrap { width: 100%; padding-top: 100%; position: relative; background-color: #f9f9f9; }
+        .card-img-wrap { width: 100%; padding-top: 100%; position: relative; background-color: #f9f9f9; cursor: pointer; }
         .card-img-wrap img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-        .category-tag { position: absolute; top: 8px; left: 8px; background: rgba(46, 125, 50, 0.9); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; }
+        .category-tag { position: absolute; top: 8px; left: 8px; background: rgba(46, 125, 50, 0.9); color: white; font-size: 0.7rem; padding: 3px 8px; border-radius: 6px; z-index: 2; }
+        .status-badge { position: absolute; bottom: 8px; left: 8px; background: #d32f2f; color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: bold; z-index: 2; }
+        .badge-out { background: #757575; }
+        .badge-best { background: #ff9800; }
 
         /* Admin Action Buttons */
-        .admin-actions { position: absolute; top: 8px; right: 8px; display: none; gap: 5px; }
+        .admin-actions { position: absolute; top: 8px; right: 8px; display: none; gap: 5px; z-index: 3; }
         .btn-action-icon { width: 28px; height: 28px; border-radius: 50%; border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
         .btn-edit { background: #ff9800; }
         .btn-delete { background: #f44336; }
 
         .card-body { padding: 12px; display: flex; flex-direction: column; flex-grow: 1; }
-        .product-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .product-name { font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; cursor: pointer; }
         .product-price { font-size: 1.05rem; font-weight: 700; color: #d32f2f; margin-bottom: 10px; }
-        .btn-add-cart { margin-top: auto; background-color: var(--primary-color); color: white; border: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; }
+        .btn-add-cart { margin-top: auto; background-color: var(--primary-color); color: white; border: none; padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; }
 
-        /* UI Login (ឌីហ្សាញដូចរូបភាព) */
+        /* UI Login */
         .login-card {
             background: white; border-radius: 16px; padding: 35px 25px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.05); max-width: 450px; margin: 30px auto;
@@ -93,15 +104,24 @@
 
         .btn-primary { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
         .btn-danger { background: #d32f2f; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 15px; }
+        .btn-telegram { background: #0088cc; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
 
         /* Modal Overlay */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 15px; }
-        .modal-card { background: white; width: 100%; max-width: 450px; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+        .modal-card { background: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); max-height: 90vh; overflow-y: auto; }
         .modal-btns { display: flex; gap: 10px; margin-top: 15px; }
         .btn-cancel { flex: 1; background: #777; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
-        .form-control { width: 100%; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; }
+        .form-group { margin-bottom: 12px; text-align: left; }
+        .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+        .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; }
+
+        /* Cart Drawer Styles */
+        .cart-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
+        .cart-item-info { flex: 1; }
+        .cart-item-title { font-size: 0.9rem; font-weight: 600; }
+        .cart-item-price { font-size: 0.85rem; color: #d32f2f; }
+        .cart-controls { display: flex; align-items: center; gap: 8px; }
+        .btn-qty { width: 25px; height: 25px; border-radius: 4px; border: 1px solid #ccc; background: #f0f0f0; cursor: pointer; font-weight: bold; }
 
         /* Fixed Bottom Nav */
         .bottom-nav { 
@@ -128,7 +148,7 @@
             <i class="fa-solid fa-leaf"></i>
             <span>ហាងជី និងថ្នាំកសិកម្ម</span>
         </div>
-        <button class="cart-btn" onclick="alert('ទំនិញក្នុងកន្ត្រក៖ ' + cartCount)">
+        <button class="cart-btn" onclick="openCartModal()">
             <i class="fa-solid fa-cart-shopping"></i>
             <span class="cart-badge" id="cartBadge">0</span>
         </button>
@@ -138,6 +158,18 @@
         <div class="section-header">
             <div class="section-title" id="currentCategoryTitle">
                 <i class="fa-solid fa-boxes-stacked"></i> ទំនិញទាំងអស់
+            </div>
+            <!-- របារស្វែងរក & Sort -->
+            <div class="toolbar">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="searchInput" placeholder="ស្វែងរកឈ្មោះថ្នាំ/ជី..." onkeyup="applyFilterAndSort()">
+                </div>
+                <select id="sortSelect" class="sort-select" onchange="applyFilterAndSort()">
+                    <option value="default">ធម្មតា</option>
+                    <option value="low">តម្លៃ៖ ទាប -> ខ្ពស់</option>
+                    <option value="high">តម្លៃ៖ ខ្ពស់ -> ទាប</option>
+                </select>
             </div>
         </div>
 
@@ -170,15 +202,57 @@
                     <input type="number" id="pPrice" class="form-control" placeholder="ឧ. 15000" required>
                 </div>
                 <div class="form-group">
+                    <label>ស្លាកសញ្ញា (Badge)</label>
+                    <select id="pBadge" class="form-control">
+                        <option value="">គ្មាន</option>
+                        <option value="Best Seller">Best Seller</option>
+                        <option value="Discount 10%">Discount 10%</option>
+                        <option value="Out of Stock">Out of Stock</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ព័ត៌មានលម្អិត & របៀបប្រើប្រាស់</label>
+                    <textarea id="pDesc" class="form-control" rows="3" placeholder="ឧ. ប្រើ ២០សេសេ លាយទឹក ២០លីត្រ..."></textarea>
+                </div>
+                <div class="form-group">
                     <label>ជ្រើសរើសរូបភាពថ្នាំ (Image File)</label>
                     <input type="file" id="pImgFile" accept="image/*" class="form-control" onchange="previewImg(event)">
                     <img id="modalImgPreview" src="" style="display:none; width: 80px; height: 80px; object-fit: cover; margin-top: 10px; border-radius: 6px;">
                 </div>
                 <div class="modal-btns">
-                    <button type="button" class="btn-cancel" onclick="closeModal()">បោះបង់</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('productModal')">បោះបង់</button>
                     <button type="submit" class="btn-primary" id="btnSaveProd">រក្សាទុក</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal ព័ត៌មានលម្អិតទំនិញ (Product Details Modal) -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal-card" style="text-align: center;">
+            <img id="detailImg" src="" style="width: 100%; max-height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 12px;">
+            <h3 id="detailName" style="color: var(--primary-color); margin-bottom: 5px;"></h3>
+            <p id="detailPrice" style="font-weight: bold; color: #d32f2f; font-size: 1.1rem; margin-bottom: 10px;"></p>
+            <p id="detailDesc" style="text-align: left; font-size: 0.9rem; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; white-space: pre-line;"></p>
+            <button class="btn-cancel" onclick="closeModal('detailModal')">បិទ</button>
+        </div>
+    </div>
+
+    <!-- Modal កន្ត្រកទំនិញ (Cart Drawer/Modal) -->
+    <div class="modal-overlay" id="cartModal">
+        <div class="modal-card">
+            <h3 style="margin-bottom: 15px; color: var(--primary-color);"><i class="fa-solid fa-cart-shopping"></i> កន្ត្រកទំនិញរបស់អ្នក</h3>
+            <div id="cartItemsList" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px;">
+                <!-- items will render here -->
+            </div>
+            <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.05rem; margin-bottom: 15px; border-top: 2px solid #eee; padding-top: 10px;">
+                <span>តម្លៃសរុប៖</span>
+                <span id="cartTotal" style="color: #d32f2f;">0 ៛</span>
+            </div>
+            <button class="btn-telegram" onclick="sendOrderToTelegram()">
+                <i class="fa-brands fa-telegram"></i> បញ្ជាទិញតាម Telegram
+            </button>
+            <button class="btn-cancel" style="width: 100%; margin-top: 8px;" onclick="closeModal('cartModal')">បិទ</button>
         </div>
     </div>
 
@@ -212,24 +286,22 @@
         </button>
     </nav>
 
-    <!-- Firebase SDK (លុប Storage SDK ចេញ ដើម្បីកុំឲ្យមានបញ្ហា CORS) -->
+    <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // ⚠️ ដាក់ Firebase Config របស់អ្នកនៅទីនេះ ⚠️
         const firebaseConfig = {
-  apiKey: "AIzaSyBS2MJ5A9-elf9t4XBRJXliwqZjsiZqNuQ",
-  authDomain: "online-sm-4f9be.firebaseapp.com",
-  databaseURL: "https://online-sm-4f9be-default-rtdb.firebaseio.com",
-  projectId: "online-sm-4f9be",
-  storageBucket: "online-sm-4f9be.firebasestorage.app",
-  messagingSenderId: "75171669132",
-  appId: "1:75171669132:web:445420e5a21c64a07807a9",
-  measurementId: "G-NPJ6GBZZHN"
-};
-
+            apiKey: "AIzaSyBS2MJ5A9-elf9t4XBRJXliwqZjsiZqNuQ",
+            authDomain: "online-sm-4f9be.firebaseapp.com",
+            databaseURL: "https://online-sm-4f9be-default-rtdb.firebaseio.com",
+            projectId: "online-sm-4f9be",
+            storageBucket: "online-sm-4f9be.firebasestorage.app",
+            messagingSenderId: "75171669132",
+            appId: "1:75171669132:web:445420e5a21c64a07807a9",
+            measurementId: "G-NPJ6GBZZHN"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -252,15 +324,28 @@
 
     <script>
         let products = [];
-        let cartCount = 0;
+        let cart = []; // រក្សាទុក Object ទំនិញ { id, name, price, qty }
         let activeCategory = 'ថ្នាំជំនួយ';
 
-        // អនុគមន៍បំប្លែង File រូបភាពទៅជា Base64 (មិនឆ្លងកាត់ Firebase Storage ឡើយ)
-        function convertFileToBase64(file) {
+        // មុខងារ Compress រូបភាពជាមួយ Canvas មុនបំប្លែងជា Base64
+        function compressAndConvertToBase64(file, maxWidth = 500) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result);
+                reader.onload = event => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const scaleSize = maxWidth / img.width;
+                        canvas.width = maxWidth;
+                        canvas.height = img.height * (scaleSize < 1 ? scaleSize : 1);
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // បង្រួមត្រឹម 70% គុណភាព
+                    };
+                };
                 reader.onerror = error => reject(error);
             });
         }
@@ -272,7 +357,7 @@
             grid.innerHTML = '';
 
             if (items.length === 0) {
-                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding: 20px;">មិនទាន់មានទំនិញក្នុងប្រភេទទិន្នន័យនេះទេ</p>';
+                grid.innerHTML = '<p style="grid-column:1/-1; text-align:center; padding: 20px;">មិនមានទំនិញទេ</p>';
                 return;
             }
 
@@ -280,26 +365,41 @@
 
             items.forEach(product => {
                 const formattedPrice = Number(product.price).toLocaleString('km-KH');
+                const badgeHtml = product.badge ? `<span class="status-badge ${product.badge === 'Out of Stock' ? 'badge-out' : (product.badge === 'Best Seller' ? 'badge-best' : '')}">${product.badge}</span>` : '';
+
                 grid.innerHTML += `
                     <div class="card">
                         <div class="admin-actions" style="display: ${isAdmin ? 'flex' : 'none'};">
                             <button class="btn-action-icon btn-edit" onclick="openEditModal('${product.id}')"><i class="fa-solid fa-pen"></i></button>
                             <button class="btn-action-icon btn-delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button>
                         </div>
-                        <div class="card-img-wrap">
+                        <div class="card-img-wrap" onclick="showProductDetails('${product.id}')">
                             <img src="${product.img}" alt="${product.name}">
                             <span class="category-tag">${product.category}</span>
+                            ${badgeHtml}
                         </div>
                         <div class="card-body">
-                            <div class="product-name">${product.name}</div>
+                            <div class="product-name" onclick="showProductDetails('${product.id}')">${product.name}</div>
                             <div class="product-price">${formattedPrice} ៛</div>
-                            <button class="btn-add-cart" onclick="addToCart()">
-                                <i class="fa-solid fa-cart-plus"></i> ទិញទំនិញ
+                            <button class="btn-add-cart" onclick="addToCart('${product.id}')">
+                                <i class="fa-solid fa-cart-plus"></i> បញ្ចូលកន្ត្រក
                             </button>
                         </div>
                     </div>
                 `;
             });
+        }
+
+        function applyFilterAndSort() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const sortVal = document.getElementById('sortSelect').value;
+
+            let filtered = products.filter(p => p.category === activeCategory && p.name.toLowerCase().includes(query));
+
+            if (sortVal === 'low') filtered.sort((a, b) => a.price - b.price);
+            if (sortVal === 'high') filtered.sort((a, b) => b.price - a.price);
+
+            renderProducts(filtered);
         }
 
         async function filterCategory(categoryName, element) {
@@ -309,13 +409,113 @@
             document.getElementById('currentCategoryTitle').innerHTML = `<i class="fa-solid fa-filter"></i> ប្រភេទ: ${categoryName}`;
             
             await fetchProductsFromFirebase();
-            const filtered = products.filter(p => p.category === categoryName);
-            renderProducts(filtered);
+            applyFilterAndSort();
         }
 
         function updateActiveNav(element) {
             document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
             if(element) element.classList.add('active');
+        }
+
+        /* មុខងារបង្ហាញព័ត៌មានលម្អិតទំនិញ (Product Details) */
+        function showProductDetails(id) {
+            const prod = products.find(p => p.id === id);
+            if (!prod) return;
+
+            document.getElementById('detailImg').src = prod.img;
+            document.getElementById('detailName').innerText = prod.name;
+            document.getElementById('detailPrice').innerText = Number(prod.price).toLocaleString('km-KH') + " ៛";
+            document.getElementById('detailDesc').innerText = prod.desc || "មិនទាន់មានព័ត៌មានលម្អិតបន្ថែមទេ។";
+            document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        /* មុខងារគ្រប់គ្រងកន្ត្រកទំនិញ (Cart System) */
+        function addToCart(id) {
+            const prod = products.find(p => p.id === id);
+            if (!prod) return;
+
+            const existItem = cart.find(item => item.id === id);
+            if (existItem) {
+                existItem.qty += 1;
+            } else {
+                cart.push({ id: prod.id, name: prod.name, price: prod.price, qty: 1 });
+            }
+            updateCartBadge();
+        }
+
+        function updateCartBadge() {
+            const totalCount = cart.reduce((sum, item) => sum + item.qty, 0);
+            document.getElementById('cartBadge').innerText = totalCount;
+        }
+
+        function openCartModal() {
+            renderCartItems();
+            document.getElementById('cartModal').style.display = 'flex';
+        }
+
+        function changeQty(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+            item.qty += delta;
+            if (item.qty <= 0) {
+                cart = cart.filter(i => i.id !== id);
+            }
+            updateCartBadge();
+            renderCartItems();
+        }
+
+        function renderCartItems() {
+            const list = document.getElementById('cartItemsList');
+            list.innerHTML = '';
+            let total = 0;
+
+            if (cart.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color:#777;">មិនទាន់មានទំនិញក្នុងកន្ត្រកទេ</p>';
+                document.getElementById('cartTotal').innerText = '0 ៛';
+                return;
+            }
+
+            cart.forEach(item => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                list.innerHTML += `
+                    <div class="cart-item">
+                        <div class="cart-item-info">
+                            <div class="cart-item-title">${item.name}</div>
+                            <div class="cart-item-price">${Number(item.price).toLocaleString('km-KH')} ៛</div>
+                        </div>
+                        <div class="cart-controls">
+                            <button class="btn-qty" onclick="changeQty('${item.id}', -1)">-</button>
+                            <span>${item.qty}</span>
+                            <button class="btn-qty" onclick="changeQty('${item.id}', 1)">+</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('cartTotal').innerText = total.toLocaleString('km-KH') + ' ៛';
+        }
+
+        /* មុខងារផ្ញើការបញ្ជាទិញទៅ Telegram */
+        function sendOrderToTelegram() {
+            if (cart.length === 0) {
+                alert("សូមបន្ថែមទំនិញទៅក្នុងកន្ត្រកមុននឹងបញ្ជាទិញ!");
+                return;
+            }
+
+            let text = "🛒 **មានការបញ្ជាទិញថ្មីពីហាង!**\n\n";
+            let total = 0;
+            cart.forEach((item, index) => {
+                const itemTotal = item.price * item.qty;
+                total += itemTotal;
+                text += `${index + 1}. ${item.name} x ${item.qty} = ${itemTotal.toLocaleString('km-KH')} ៛\n`;
+            });
+            text += `\n💰 **តម្លៃសរុប៖ ${total.toLocaleString('km-KH')} ៛**`;
+
+            // ដាក់ Telegram Username របស់អ្នកត្រង់នេះ
+            const telegramUsername = "your_telegram"; 
+            const url = `https://t.me/${telegramUsername}?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
         }
 
         function showProfile(element) {
@@ -395,6 +595,8 @@
             document.getElementById('pName').value = prod.name;
             document.getElementById('pCategory').value = prod.category;
             document.getElementById('pPrice').value = prod.price;
+            document.getElementById('pBadge').value = prod.badge || '';
+            document.getElementById('pDesc').value = prod.desc || '';
             
             const img = document.getElementById('modalImgPreview');
             img.src = prod.img;
@@ -403,8 +605,8 @@
             document.getElementById('productModal').style.display = "flex";
         }
 
-        function closeModal() {
-            document.getElementById('productModal').style.display = "none";
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = "none";
         }
 
         function previewImg(e) {
@@ -420,7 +622,6 @@
             }
         }
 
-        // អនុគមន៍រក្សាទុកទំនិញ ដោយបំប្លែងរូបភាពទៅជា Base64
         async function handleProductSave(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSaveProd');
@@ -431,30 +632,31 @@
             const name = document.getElementById('pName').value;
             const category = document.getElementById('pCategory').value;
             const price = document.getElementById('pPrice').value;
+            const badge = document.getElementById('pBadge').value;
+            const desc = document.getElementById('pDesc').value;
             const file = document.getElementById('pImgFile').files[0];
 
             try {
                 let imgUrl = null;
 
-                // ប្រសិនបើមានជ្រើសរើសរូបភាព បំប្លែងវាទៅជា Base64 String
                 if (file) {
-                    imgUrl = await convertFileToBase64(file);
+                    imgUrl = await compressAndConvertToBase64(file, 500);
                 }
 
                 if (id) {
-                    const updateData = { name, category, price: Number(price) };
+                    const updateData = { name, category, price: Number(price), badge, desc };
                     if (imgUrl) updateData.img = imgUrl;
                     await window.fb.updateDoc(window.fb.doc(window.db, "products", id), updateData);
                     alert("កែប្រែទំនិញជោគជ័យ!");
                 } else {
                     if (!imgUrl) imgUrl = "https://via.placeholder.com/400";
                     await window.fb.addDoc(window.fb.collection(window.db, "products"), {
-                        name, category, price: Number(price), img: imgUrl, createdAt: new Date()
+                        name, category, price: Number(price), badge, desc, img: imgUrl, createdAt: new Date()
                     });
                     alert("បន្ថែមទំនិញជោគជ័យ!");
                 }
 
-                closeModal();
+                closeModal('productModal');
                 filterCategory(activeCategory, document.querySelector('.nav-item.active'));
 
             } catch (err) {
@@ -481,11 +683,6 @@
                 alert("លុបទំនិញជោគជ័យ!");
                 filterCategory(activeCategory, document.querySelector('.nav-item.active'));
             }
-        }
-
-        function addToCart() {
-            cartCount++;
-            document.getElementById('cartBadge').innerText = cartCount;
         }
     </script>
 </body>
