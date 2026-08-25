@@ -8,6 +8,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Cropper.js CSS (សម្រាប់ការកាត់តតម្រឹមរូបភាព) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Kantumruy Pro', sans-serif; }
@@ -17,6 +19,7 @@
             --card-bg: #ffffff; 
             --text-color: #2c3e50; 
             --nav-height: 65px; 
+            --header-height: 64px;
         }
 
         body { 
@@ -30,6 +33,7 @@
             background-color: var(--primary-color); color: white; padding: 12px 20px;
             position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             display: flex; justify-content: space-between; align-items: center;
+            height: var(--header-height);
         }
         .brand-logo { display: flex; align-items: center; gap: 10px; font-size: 1.2rem; font-weight: 700; }
         .cart-btn {
@@ -43,14 +47,26 @@
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 15px; }
-        .section-header { display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px; }
+
+        /* Section Header - Sticky ជាប់នៅខាងលើពេល Scroll */
+        .section-header { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+            margin-bottom: 15px;
+            position: sticky;
+            top: var(--header-height);
+            z-index: 99;
+            background-color: var(--bg-color);
+            padding: 10px 0;
+        }
         @media(min-width: 600px) { .section-header { flex-direction: row; justify-content: space-between; align-items: center; } }
         .section-title { font-size: 1.1rem; font-weight: 700; color: #1b5e20; display: flex; align-items: center; gap: 8px; }
 
         /* Search and Sort Toolbar */
         .toolbar { display: flex; gap: 10px; width: 100%; max-width: 500px; }
         .search-box { position: relative; flex: 1; }
-        .search-box input { width: 100%; padding: 8px 12px 8px 35px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.9rem; outline: none; }
+        .search-box input { width: 100%; padding: 8px 12px 8px 35px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.9rem; outline: none; background: #fff; }
         .search-box i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #777; }
         .sort-select { padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 0.85rem; outline: none; background: white; }
 
@@ -104,6 +120,7 @@
 
         .btn-primary { background: var(--primary-color); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; justify-content: center; }
         .btn-danger { background: #d32f2f; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 15px; }
+        .btn-warning { background: #ff9800; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: 600; cursor: pointer; }
         .btn-telegram { background: #0088cc; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 700; cursor: pointer; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
 
         /* Modal Overlay */
@@ -114,6 +131,11 @@
         .form-group { margin-bottom: 12px; text-align: left; }
         .form-group label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
         .form-control { width: 100%; padding: 8px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 0.9rem; }
+
+        /* Image Preview Box */
+        .img-preview-container { position: relative; width: 100px; height: 100px; margin-top: 10px; }
+        .img-preview-container img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid #ddd; }
+        .btn-remove-img { position: absolute; top: -8px; right: -8px; background: #d32f2f; color: white; border: none; width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; }
 
         /* Cart Drawer Styles */
         .cart-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee; }
@@ -138,6 +160,11 @@
         .chat-circle { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; text-decoration: none; box-shadow: 0 4px 10px rgba(0,0,0,0.25); }
         .bg-telegram { background-color: #0088cc; }
         .bg-messenger { background-color: #0084ff; }
+
+        /* Cropper Custom Styling */
+        .cropper-container-box { width: 100%; max-height: 300px; background: #333; margin-bottom: 10px; }
+        .crop-tools { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+        .crop-tools button { padding: 6px 12px; background: #e0e0e0; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -159,8 +186,8 @@
             <div class="section-title" id="currentCategoryTitle">
                 <i class="fa-solid fa-boxes-stacked"></i> ទំនិញទាំងអស់
             </div>
-            <!-- របារស្វែងរក & Sort -->
-            <div class="toolbar">
+            <!-- របារស្វែងរក & Sort (រចនា Sticky ជាប់លើអេក្រង់) -->
+            <div class="toolbar" id="mainToolbar">
                 <div class="search-box">
                     <i class="fa-solid fa-magnifying-glass"></i>
                     <input type="text" id="searchInput" placeholder="ស្វែងរកឈ្មោះថ្នាំ/ជី..." onkeyup="applyFilterAndSort()">
@@ -217,13 +244,35 @@
                 <div class="form-group">
                     <label>ជ្រើសរើសរូបភាពថ្នាំ (Image File)</label>
                     <input type="file" id="pImgFile" accept="image/*" class="form-control" onchange="previewImg(event)">
-                    <img id="modalImgPreview" src="" style="display:none; width: 80px; height: 80px; object-fit: cover; margin-top: 10px; border-radius: 6px;">
+                    
+                    <div class="img-preview-container" id="previewWrap" style="display:none;">
+                        <img id="modalImgPreview" src="">
+                        <button type="button" class="btn-remove-img" onclick="removeImage()" title="លុបរូបភាព"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
                 </div>
                 <div class="modal-btns">
                     <button type="button" class="btn-cancel" onclick="closeModal('productModal')">បោះបង់</button>
                     <button type="submit" class="btn-primary" id="btnSaveProd">រក្សាទុក</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal កាត់តតម្រឹមរូបភាព (Image Crop Modal) -->
+    <div class="modal-overlay" id="cropModal">
+        <div class="modal-card">
+            <h3 style="margin-bottom: 10px; color: var(--primary-color);">កែសម្រួលរូបភាព (Crop / Rotate)</h3>
+            <div class="cropper-container-box">
+                <img id="cropImageTarget" src="" style="max-width: 100%;">
+            </div>
+            <div class="crop-tools">
+                <button type="button" onclick="rotateImage(-90)"><i class="fa-solid fa-rotate-left"></i> បង្វិលឆ្វេង</button>
+                <button type="button" onclick="rotateImage(90)"><i class="fa-solid fa-rotate-right"></i> បង្វិលស្ដាំ</button>
+            </div>
+            <div class="modal-btns">
+                <button type="button" class="btn-cancel" onclick="closeModal('cropModal')">បោះបង់</button>
+                <button type="button" class="btn-primary" onclick="applyCrop()">យល់ព្រម</button>
+            </div>
         </div>
     </div>
 
@@ -234,6 +283,10 @@
             <h3 id="detailName" style="color: var(--primary-color); margin-bottom: 5px;"></h3>
             <p id="detailPrice" style="font-weight: bold; color: #d32f2f; font-size: 1.1rem; margin-bottom: 10px;"></p>
             <p id="detailDesc" style="text-align: left; font-size: 0.9rem; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 15px; white-space: pre-line;"></p>
+            
+            <div id="adminDetailActions" style="display:none; gap:10px; margin-bottom: 10px;">
+                <button class="btn-warning" style="flex:1;" id="btnQuickEdit"><i class="fa-solid fa-pen"></i> កែប្រែព័ត៌មាន/រូបភាព</button>
+            </div>
             <button class="btn-cancel" onclick="closeModal('detailModal')">បិទ</button>
         </div>
     </div>
@@ -286,6 +339,9 @@
         </button>
     </nav>
 
+    <!-- CropperJS JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
     <!-- Firebase SDK -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -324,10 +380,13 @@
 
     <script>
         let products = [];
-        let cart = []; // រក្សាទុក Object ទំនិញ { id, name, price, qty }
+        let cart = [];
         let activeCategory = 'ថ្នាំជំនួយ';
+        let cropper = null;
+        let croppedBase64 = null;
+        const DEFAULT_IMG = "https://via.placeholder.com/400?text=No+Image";
 
-        // មុខងារ Compress រូបភាពជាមួយ Canvas មុនបំប្លែងជា Base64
+        // មុខងារ Compress និង Convert រូបភាពជាមួយ Canvas
         function compressAndConvertToBase64(file, maxWidth = 500) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -343,7 +402,7 @@
 
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        resolve(canvas.toDataURL('image/jpeg', 0.7)); // បង្រួមត្រឹម 70% គុណភាព
+                        resolve(canvas.toDataURL('image/jpeg', 0.7));
                     };
                 };
                 reader.onerror = error => reject(error);
@@ -374,7 +433,7 @@
                             <button class="btn-action-icon btn-delete" onclick="deleteProduct('${product.id}')"><i class="fa-solid fa-trash"></i></button>
                         </div>
                         <div class="card-img-wrap" onclick="showProductDetails('${product.id}')">
-                            <img src="${product.img}" alt="${product.name}">
+                            <img src="${product.img || DEFAULT_IMG}" alt="${product.name}">
                             <span class="category-tag">${product.category}</span>
                             ${badgeHtml}
                         </div>
@@ -391,8 +450,12 @@
         }
 
         function applyFilterAndSort() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const sortVal = document.getElementById('sortSelect').value;
+            const searchInput = document.getElementById('searchInput');
+            const sortSelect = document.getElementById('sortSelect');
+            if(!searchInput || !sortSelect) return;
+
+            const query = searchInput.value.toLowerCase();
+            const sortVal = sortSelect.value;
 
             let filtered = products.filter(p => p.category === activeCategory && p.name.toLowerCase().includes(query));
 
@@ -406,6 +469,9 @@
             activeCategory = categoryName;
             window.activeCategory = categoryName;
             updateActiveNav(element);
+            
+            // បង្ហាញ Toolbar ឡើងវិញពេលនៅទំព័រទំនិញ
+            document.getElementById('mainToolbar').style.display = 'flex';
             document.getElementById('currentCategoryTitle').innerHTML = `<i class="fa-solid fa-filter"></i> ប្រភេទ: ${categoryName}`;
             
             await fetchProductsFromFirebase();
@@ -417,16 +483,73 @@
             if(element) element.classList.add('active');
         }
 
-        /* មុខងារបង្ហាញព័ត៌មានលម្អិតទំនិញ (Product Details) */
+        /* មុខងារបង្ហាញព័ត៌មានលម្អិត និងកែប្រែប្រញាប់ */
         function showProductDetails(id) {
             const prod = products.find(p => p.id === id);
             if (!prod) return;
 
-            document.getElementById('detailImg').src = prod.img;
+            document.getElementById('detailImg').src = prod.img || DEFAULT_IMG;
             document.getElementById('detailName').innerText = prod.name;
             document.getElementById('detailPrice').innerText = Number(prod.price).toLocaleString('km-KH') + " ៛";
             document.getElementById('detailDesc').innerText = prod.desc || "មិនទាន់មានព័ត៌មានលម្អិតបន្ថែមទេ។";
+            
+            const isAdmin = !!window.currentUser;
+            const adminActions = document.getElementById('adminDetailActions');
+            if(isAdmin) {
+                adminActions.style.display = 'flex';
+                document.getElementById('btnQuickEdit').onclick = () => {
+                    closeModal('detailModal');
+                    openEditModal(id);
+                };
+            } else {
+                adminActions.style.display = 'none';
+            }
+
             document.getElementById('detailModal').style.display = 'flex';
+        }
+
+        /* មុខងារ Cropper & រូបភាព */
+        function previewImg(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    document.getElementById('cropImageTarget').src = event.target.result;
+                    document.getElementById('cropModal').style.display = 'flex';
+                    
+                    if (cropper) cropper.destroy();
+                    const imgElement = document.getElementById('cropImageTarget');
+                    cropper = new Cropper(imgElement, {
+                        aspectRatio: 1, // រូបការ៉េ 1:1
+                        viewMode: 1,
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function rotateImage(deg) {
+            if (cropper) cropper.rotate(deg);
+        }
+
+        function applyCrop() {
+            if (cropper) {
+                const canvas = cropper.getCroppedCanvas({ width: 500, height: 500 });
+                croppedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+                
+                const previewImg = document.getElementById('modalImgPreview');
+                previewImg.src = croppedBase64;
+                document.getElementById('previewWrap').style.display = 'block';
+                
+                closeModal('cropModal');
+            }
+        }
+
+        function removeImage() {
+            croppedBase64 = "REMOVE"; // សញ្ញាបញ្ជាក់ថាតម្រូវឱ្យលុបរូបភាពចេញ
+            document.getElementById('modalImgPreview').src = "";
+            document.getElementById('previewWrap').style.display = 'none';
+            document.getElementById('pImgFile').value = "";
         }
 
         /* មុខងារគ្រប់គ្រងកន្ត្រកទំនិញ (Cart System) */
@@ -496,7 +619,6 @@
             document.getElementById('cartTotal').innerText = total.toLocaleString('km-KH') + ' ៛';
         }
 
-        /* មុខងារផ្ញើការបញ្ជាទិញទៅ Telegram */
         function sendOrderToTelegram() {
             if (cart.length === 0) {
                 alert("សូមបន្ថែមទំនិញទៅក្នុងកន្ត្រកមុននឹងបញ្ជាទិញ!");
@@ -512,7 +634,6 @@
             });
             text += `\n💰 **តម្លៃសរុប៖ ${total.toLocaleString('km-KH')} ៛**`;
 
-            // ដាក់ Telegram Username របស់អ្នកត្រង់នេះ
             const telegramUsername = "your_telegram"; 
             const url = `https://t.me/${telegramUsername}?text=${encodeURIComponent(text)}`;
             window.open(url, '_blank');
@@ -520,6 +641,9 @@
 
         function showProfile(element) {
             updateActiveNav(element);
+            
+            // លាក់ Search & Sort toolbar ពេលចុចមើល Profile
+            document.getElementById('mainToolbar').style.display = 'none';
             document.getElementById('currentCategoryTitle').innerHTML = `<i class="fa-solid fa-user"></i> គណនី (Profile)`;
             renderProfileView();
         }
@@ -531,7 +655,7 @@
             if (user) {
                 mainContent.innerHTML = `
                     <div class="login-card" id="profileView">
-                        <img src="${user.photoURL || 'https://via.placeholder.com/80'}" style="width:80px; height:80px; border-radius:50%; margin-bottom:15px; object-fit:cover;">
+                        <img src="${user.photoURL || DEFAULT_IMG}" style="width:80px; height:80px; border-radius:50%; margin-bottom:15px; object-fit:cover;">
                         <h3 class="login-title">${user.displayName || 'អ្នកគ្រប់គ្រង'}</h3>
                         <p class="login-subtitle">${user.email}</p>
                         
@@ -582,7 +706,8 @@
             document.getElementById('modalTitle').innerText = "បន្ថែមទំនិញថ្មី";
             document.getElementById('editProdId').value = "";
             document.getElementById('productForm').reset();
-            document.getElementById('modalImgPreview').style.display = "none";
+            croppedBase64 = null;
+            document.getElementById('previewWrap').style.display = "none";
             document.getElementById('productModal').style.display = "flex";
         }
 
@@ -597,29 +722,21 @@
             document.getElementById('pPrice').value = prod.price;
             document.getElementById('pBadge').value = prod.badge || '';
             document.getElementById('pDesc').value = prod.desc || '';
+            croppedBase64 = null;
             
-            const img = document.getElementById('modalImgPreview');
-            img.src = prod.img;
-            img.style.display = 'block';
+            const imgPreview = document.getElementById('modalImgPreview');
+            if (prod.img && prod.img !== DEFAULT_IMG) {
+                imgPreview.src = prod.img;
+                document.getElementById('previewWrap').style.display = 'block';
+            } else {
+                document.getElementById('previewWrap').style.display = 'none';
+            }
 
             document.getElementById('productModal').style.display = "flex";
         }
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = "none";
-        }
-
-        function previewImg(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = document.getElementById('modalImgPreview');
-                    img.src = event.target.result;
-                    img.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            }
         }
 
         async function handleProductSave(e) {
@@ -634,24 +751,25 @@
             const price = document.getElementById('pPrice').value;
             const badge = document.getElementById('pBadge').value;
             const desc = document.getElementById('pDesc').value;
-            const file = document.getElementById('pImgFile').files[0];
 
             try {
-                let imgUrl = null;
+                let imgUrl = undefined;
 
-                if (file) {
-                    imgUrl = await compressAndConvertToBase64(file, 500);
+                if (croppedBase64 === "REMOVE") {
+                    imgUrl = DEFAULT_IMG;
+                } else if (croppedBase64) {
+                    imgUrl = croppedBase64;
                 }
 
                 if (id) {
                     const updateData = { name, category, price: Number(price), badge, desc };
-                    if (imgUrl) updateData.img = imgUrl;
+                    if (imgUrl !== undefined) updateData.img = imgUrl;
                     await window.fb.updateDoc(window.fb.doc(window.db, "products", id), updateData);
                     alert("កែប្រែទំនិញជោគជ័យ!");
                 } else {
-                    if (!imgUrl) imgUrl = "https://via.placeholder.com/400";
+                    const finalImg = imgUrl ? imgUrl : DEFAULT_IMG;
                     await window.fb.addDoc(window.fb.collection(window.db, "products"), {
-                        name, category, price: Number(price), badge, desc, img: imgUrl, createdAt: new Date()
+                        name, category, price: Number(price), badge, desc, img: finalImg, createdAt: new Date()
                     });
                     alert("បន្ថែមទំនិញជោគជ័យ!");
                 }
