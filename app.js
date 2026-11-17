@@ -1,6 +1,6 @@
 /**
  * SOVANN EXPENSE LEDGER - APP.JS
- * មានមុខងារ Authentication & Supabase
+ * ភ្ជាប់ជាមួយ Supabase, Auth, CRUD និង Tesseract OCR
  */
 
 // --- 1. រៀបចំ SUPABASE ---
@@ -12,15 +12,16 @@ if (window.supabase) {
     supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
     console.log("ភ្ជាប់ Supabase បានជោគជ័យ!");
 } else {
-    console.error("មិនអាចស្វែងរក Supabase Library ទេ។");
+    console.error("មិនអាចស្វែងរក Supabase Library ទេ។ សូមពិនិត្យមើល tag <script> នៅក្នុង HTML របស់អ្នក។");
 }
 
 // --- 2. អថេរ និងទិន្នន័យ (State) ---
 const STORAGE_KEY_SETTINGS = 'sovann_settings';
 const DEFAULT_SETTINGS = { exchangeRate: 4100, soundEnabled: true, hapticEnabled: true };
 
-let currentUser = null; // រក្សាទុក User ដែលបាន Login
-let currentTransactions = []; // ទិន្នន័យប្រតិបត្តិការ
+let currentUser = null; 
+let currentTransactions = []; 
+let scannedResult = { amount: 0, currency: 'KHR' }; // សម្រាប់ផ្ទុកទិន្នន័យស្កេនបណ្តោះអាសន្ន
 
 let formState = {
     type: 'expense',
@@ -36,24 +37,20 @@ let formState = {
 async function checkUserSession() {
     if (!supabaseClient) return;
     
-    // ពិនិត្យមើលថាមានអ្នក Login ជាប់ឬអត់
     const { data: { session } } = await supabaseClient.auth.getSession();
     
     if (session) {
         currentUser = session.user;
         switchTab('dashboard'); 
-        loadAndRenderDashboard();
     } else {
         currentUser = null;
         switchTab('auth'); 
     }
 
-    // ចាប់សញ្ញាពេល Login ឬ Logout
     supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'SIGNED_IN') {
             currentUser = session.user;
             switchTab('dashboard');
-            loadAndRenderDashboard();
         } else if (event === 'SIGNED_OUT') {
             currentUser = null;
             currentTransactions = [];
@@ -68,11 +65,7 @@ async function handleLogin() {
     
     if(!email || !password) return alert("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!");
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password,
-    });
-
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) alert("ការចូលគណនីបរាជ័យ៖ " + error.message);
 }
 
@@ -82,22 +75,16 @@ async function handleSignUp() {
     
     if(!email || !password) return alert("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!");
 
-    const { data, error } = await supabaseClient.auth.signUp({
-        email: email,
-        password: password,
-    });
-
-    if (error) {
-        alert("ការបង្កើតគណនីបរាជ័យ៖ " + error.message);
-    } else {
-        alert("បង្កើតគណនីជោគជ័យ! ប្រសិនបើមិនទាន់ចូលកម្មវិធី សូមចុច Login។");
-    }
+    const { error } = await supabaseClient.auth.signUp({ email, password });
+    if (error) alert("ការបង្កើតគណនីបរាជ័យ៖ " + error.message);
+    else alert("បង្កើតគណនីជោគជ័យ! សូមចុច Login។");
 }
 
 async function handleLogout() {
-    await supabaseClient.auth.signOut();
+    if (confirm('តើអ្នកពិតជាចង់ចាកចេញមែនទេ?')) {
+        await supabaseClient.auth.signOut();
+    }
 }
-
 
 // --- 4. មុខងារទូទៅ (Helper Functions) ---
 function initDataStore() {
@@ -160,7 +147,6 @@ function switchTab(pageId) {
     });
 
     const dock = document.getElementById('bottomDock');
-    // លាក់ម៉ឺនុយខាងក្រោមពេលនៅទំព័រ Login ស្កេនកាមេរ៉ា ឬបញ្ចូលចំណាយ
     if (pageId === 'camera' || pageId === 'add' || pageId === 'auth') {
         dock.style.display = 'none';
     } else {
@@ -263,8 +249,107 @@ document.querySelectorAll('.cat-pill').forEach(pill => {
     });
 });
 
+// --- 7. កាមេរ៉ាស្កេន និង OCR (Tesseract.js) ---
+async function processReceiptOCR(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-// --- 7. SUPABASE CRUD (បញ្ជូន ទាញ និងលុប) ---
+    const previewImage = document.getElementById('previewImage');
+    const noImageText = document.getElementById('noImageText');
+    const ocrResultCard = document.getElementById('ocrResultCard');
+    
+    previewImage.src = URL.createObjectURL(file);
+    previewImage.classList.remove('hidden');
+    noImageText.classList.add('hidden');
+    ocrResultCard.classList.add('hidden'); 
+
+    const statusText = document.getElementById('cameraStatusText');
+    const icon = document.getElementById('cameraIcon');
+    const laser = document.getElementById('laserScanner');
+    const shutterBtn = document.getElementById('shutterBtn');
+    
+    shutterBtn.disabled = true;
+    laser.classList.remove('hidden'); 
+    statusText.innerText = "កំពុងរៀបចំ AI...";
+    statusText.classList.replace('text-slate-400', 'text-brand-gold');
+    icon.innerText = "sync";
+    icon.classList.add("animate-spin");
+
+    try {
+        if(typeof Tesseract === 'undefined') {
+            alert("Tesseract Library មិនទាន់ដំណើរការទេ។");
+            return;
+        }
+
+        const result = await Tesseract.recognize(file, 'eng', {
+            logger: m => {
+                if (m.status === 'recognizing text') {
+                    statusText.innerText = `កំពុងវិភាគ... ${Math.round(m.progress * 100)}%`;
+                }
+            }
+        });
+
+        const text = result.data.text;
+        console.log("អត្ថបទស្កេនបាន:\n", text);
+
+        const numberMatches = text.match(/\d+([.,]\d+)?/g);
+        let highestAmount = 0;
+        
+        if (numberMatches) {
+            numberMatches.forEach(numStr => {
+                const val = parseFloat(numStr.replace(/,/g, ''));
+                if (val > highestAmount) highestAmount = val;
+            });
+        }
+
+        if (highestAmount > 0) {
+            scannedResult.currency = highestAmount > 1000 ? 'KHR' : 'USD';
+            scannedResult.amount = highestAmount;
+
+            document.getElementById('ocrAmount').innerText = highestAmount.toLocaleString();
+            document.getElementById('ocrCurrency').innerText = scannedResult.currency === 'KHR' ? '៛' : '$';
+            ocrResultCard.classList.remove('hidden');
+            
+            statusText.innerText = "ស្កេនជោគជ័យ!";
+            playRoyalFeedback('success');
+            
+        } else {
+            alert("សុំទោស AI មិនអាចរកឃើញតួលេខទឹកប្រាក់ក្នុងរូបភាពនេះទេ។");
+            statusText.innerText = "ស្កេនបរាជ័យ";
+        }
+
+    } catch (err) {
+        console.error("OCR Error:", err);
+        alert("មានបញ្ហាក្នុងការស្កេនរូបភាព។");
+        statusText.innerText = "មានបញ្ហា";
+    } finally {
+        icon.innerText = "photo_camera";
+        icon.classList.remove("animate-spin");
+        laser.classList.add('hidden');
+        statusText.classList.replace('text-brand-gold', 'text-slate-400');
+        shutterBtn.disabled = false;
+        event.target.value = ''; 
+    }
+}
+
+function applyScannedData() {
+    formState.type = 'expense';
+    formState.currency = scannedResult.currency;
+    formState.rawAmount = scannedResult.amount.toString();
+    formState.category = 'ផ្សេងៗ (Other)'; 
+    formState.icon = 'more_horiz';
+    
+    document.getElementById('txNoteInput').value = 'វិក្កយបត្រ (បានស្កេន)';
+    
+    setTxType('expense');
+    setCurrency(formState.currency);
+    updateFormAmountDisplay();
+    
+    switchTab('add');
+}
+
+
+// --- 8. SUPABASE CRUD (បញ្ជូន ទាញ និងលុប) ---
 document.getElementById('txForm').addEventListener('submit', (e) => {
     e.preventDefault();
     saveCurrentFormTransaction();
@@ -285,7 +370,7 @@ async function saveCurrentFormTransaction() {
     const noteVal = document.getElementById('txNoteInput').value;
 
     const newTx = {
-        user_id: currentUser.id, // បញ្ចូល ID អ្នកប្រើប្រាស់
+        user_id: currentUser.id,
         type: formState.type,
         amount: num,
         currency: formState.currency,
@@ -307,7 +392,7 @@ async function saveCurrentFormTransaction() {
 
         if (error) {
             console.error(error);
-            return alert("បរាជ័យក្នុងការរក្សាទុកទៅកាន់ Cloud។ សូមពិនិត្យ Column។");
+            return alert("បរាជ័យក្នុងការរក្សាទុកទៅកាន់ Cloud។ សូមពិនិត្យ Column 'account' ក្នុង Database។");
         }
 
         playRoyalFeedback('success');
@@ -338,7 +423,6 @@ async function loadAndRenderDashboard() {
                 <span class="material-symbols-outlined animate-spin text-brand-gold text-3xl">sync</span>
             </div>`;
 
-        // ទាញយកតែទិន្នន័យរបស់អ្នកដែលបាន Login នេះប៉ុណ្ណោះ
         const { data, error } = await supabaseClient
             .from('transactions')
             .select('*')
@@ -367,8 +451,7 @@ async function deleteTransaction(id) {
     }
 }
 
-
-// --- 8. មុខងារបង្ហាញ UI (Render Functions) ---
+// --- 9. មុខងារបង្ហាញ UI (Render Functions) ---
 function getIconForCategory(category) {
     const iconMap = {
         'ម្ហូប & ភេសជ្ជៈ': 'restaurant',
@@ -504,7 +587,6 @@ function renderAnalytics() {
     `;
 }
 
-// --- 9. UI Modals & Actions ---
 function continueAdding() {
     formState.rawAmount = '0';
     document.getElementById('txNoteInput').value = '';
@@ -537,6 +619,24 @@ function saveSettingsForm() {
     loadAndRenderDashboard();
 }
 
+function clearAllData() {
+    alert('ដើម្បីលុបទិន្នន័យ អ្នកត្រូវចូលទៅកាន់ផ្ទាំងគ្រប់គ្រង (Dashboard) របស់ Supabase ។ (អ្នកអាចលុបប្រតិបត្តិការម្តងមួយៗនៅក្នុងទំព័រដើមបាន)');
+}
+
+function testFeedback() {
+    playRoyalFeedback('success');
+}
+
+function toggleSyncModal(show) {
+    const modal = document.getElementById('syncModal');
+    if (show) modal.classList.remove('hidden');
+    else modal.classList.add('hidden');
+}
+
+function installPWA() {
+    alert('ដើម្បីដំឡើងលើទូរស័ព្ទ៖\n- លើ Android: ចុចសញ្ញាចុចបី (⋮) -> ជ្រើសរើស "Add to Home screen"\n- លើ iOS/iPhone: ចុច Share (⎋) -> ជ្រើសរើស "Add to Home Screen"');
+}
+
 const qcUSD = document.getElementById('quickCalcUSD');
 const qcKHR = document.getElementById('quickCalcKHR');
 qcUSD.addEventListener('input', () => {
@@ -547,121 +647,8 @@ qcKHR.addEventListener('input', () => {
     const rate = Number(getSettings().exchangeRate) || 4100;
     qcUSD.value = (Number(qcKHR.value || 0) / rate).toFixed(2);
 });
-// --- មុខងារកាមេរ៉ា និងស្កេនវិក្កយបត្រ (Tesseract OCR) ---
-
-// អថេរទុកទិន្នន័យបណ្តោះអាសន្នពេលស្កេនបាន
-let scannedResult = { amount: 0, currency: 'KHR' };
-
-async function processReceiptOCR(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    // បង្ហាញរូបភាពដែលបានថតនៅលើអេក្រង់
-    const previewImage = document.getElementById('previewImage');
-    const noImageText = document.getElementById('noImageText');
-    const ocrResultCard = document.getElementById('ocrResultCard');
-    
-    previewImage.src = URL.createObjectURL(file);
-    previewImage.classList.remove('hidden');
-    noImageText.classList.add('hidden');
-    ocrResultCard.classList.add('hidden'); // លាក់ Card សិន
-
-    const statusText = document.getElementById('cameraStatusText');
-    const icon = document.getElementById('cameraIcon');
-    const laser = document.getElementById('laserScanner');
-    const shutterBtn = document.getElementById('shutterBtn');
-    
-    // ប្តូរ UI ឱ្យដឹងថាកំពុងស្កេន
-    shutterBtn.disabled = true;
-    laser.classList.remove('hidden'); // បើកសញ្ញាឡាស៊ែរស្កេនចុះឡើង
-    statusText.innerText = "កំពុងរៀបចំ AI...";
-    statusText.classList.replace('text-slate-400', 'text-brand-gold');
-    icon.innerText = "sync";
-    icon.classList.add("animate-spin");
-
-    try {
-        // ប្រសិនបើមិនមាន tesseract ទេ គឺមិនអាចដំណើរការបាន
-        if(typeof Tesseract === 'undefined') {
-            alert("Tesseract Library មិនទាន់ដំណើរការទេ។");
-            return;
-        }
-
-        // ដំណើរការ Tesseract OCR (ប្រើភាសាអង់គ្លេស 'eng' ព្រោះយើងត្រូវការតែលេខ)
-        const result = await Tesseract.recognize(file, 'eng', {
-            logger: m => {
-                if (m.status === 'recognizing text') {
-                    statusText.innerText = `កំពុងវិភាគ... ${Math.round(m.progress * 100)}%`;
-                }
-            }
-        });
-
-        const text = result.data.text;
-        console.log("ទិន្នន័យអត្ថបទដែលស្កេនបាន:\n", text);
-
-        // ប្រើប្រាស់ Regex ដើម្បីស្រង់យក "លេខ" ទាំងអស់ចេញពីវិក្កយបត្រ
-        const numberMatches = text.match(/\d+([.,]\d+)?/g);
-        let highestAmount = 0;
-        
-        if (numberMatches) {
-            numberMatches.forEach(numStr => {
-                // លុបសញ្ញាក្បៀស (,) ចេញ រួចបម្លែងជាលេខ
-                const val = parseFloat(numStr.replace(/,/g, ''));
-                // សន្មតថា "ប្រាក់សរុប" ជាទូទៅគឺជាលេខធំជាងគេក្នុងវិក្កយបត្រ
-                if (val > highestAmount) highestAmount = val;
-            });
-        }
-
-        if (highestAmount > 0) {
-            // កំណត់រូបិយប័ណ្ណស្វ័យប្រវត្តិ៖ បើលេខធំជាង ១០០០ ចាត់ទុកជារៀល បើមិនអញ្ចឹងចាត់ទុកជាដុល្លារ
-            scannedResult.currency = highestAmount > 1000 ? 'KHR' : 'USD';
-            scannedResult.amount = highestAmount;
-
-            // បង្ហាញលទ្ធផលលើអាក្រង់
-            document.getElementById('ocrAmount').innerText = highestAmount.toLocaleString();
-            document.getElementById('ocrCurrency').innerText = scannedResult.currency === 'KHR' ? '៛' : '$';
-            ocrResultCard.classList.remove('hidden');
-            
-            statusText.innerText = "ស្កេនជោគជ័យ!";
-            playRoyalFeedback('success');
-            
-        } else {
-            alert("សុំទោស AI មិនអាចរកឃើញតួលេខទឹកប្រាក់ក្នុងរូបភាពនេះទេ។ សូមថតម្ដងទៀតឱ្យច្បាស់ជាងនេះ។");
-            statusText.innerText = "ស្កេនបរាជ័យ";
-        }
-
-    } catch (err) {
-        console.error("OCR Error:", err);
-        alert("មានបញ្ហាក្នុងការស្កេនរូបភាព។");
-        statusText.innerText = "មានបញ្ហា";
-    } finally {
-        // ត្រឡប់ UI មកសភាពដើមវិញ ដើម្បីអាចថតថ្មីបាន
-        icon.innerText = "photo_camera";
-        icon.classList.remove("animate-spin");
-        laser.classList.add('hidden');
-        statusText.classList.replace('text-brand-gold', 'text-slate-400');
-        shutterBtn.disabled = false;
-        event.target.value = ''; // Reset Input
-    }
-}
-
-// មុខងារពេលចុច "យល់ព្រម" លើលទ្ធផលស្កេន ដើម្បីបញ្ជូនទៅ Form
-function applyScannedData() {
-    formState.type = 'expense';
-    formState.currency = scannedResult.currency;
-    formState.rawAmount = scannedResult.amount.toString();
-    formState.category = 'ផ្សេងៗ (Other)'; 
-    formState.icon = 'more_horiz';
-    
-    document.getElementById('txNoteInput').value = 'វិក្កយបត្រ (បានស្កេន)';
-    
-    setTxType('expense');
-    setCurrency(formState.currency);
-    updateFormAmountDisplay();
-    
-    switchTab('add'); // លោតទៅកាន់ទំព័របញ្ចូលទិន្នន័យ
-}
 
 // --- ពេលបើកកម្មវិធីដំបូង (On Load) ---
 initDataStore();
 updateFormAmountDisplay();
-checkUserSession(); // វាអាន Session រួចនឹងបើកទៅទំព័រ Login ឬ Dashboard ដោយស្វ័យប្រវត្តិ
+checkUserSession();
