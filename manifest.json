@@ -8,13 +8,7 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "IconEX.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "IconEX.png",
+      "src": "iconx.jpg",
       "sizes": "512x512",
       "type": "image/png"
     }
