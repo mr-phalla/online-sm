@@ -1,0 +1,30 @@
+* {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+input, textarea {
+    user-select: text;
+}
+/* Hide scrollbars for clean mobile feel */
+::-webkit-scrollbar {
+    display: none;
+}
+@keyframes laserSweep {
+    0% { top: 12%; opacity: 0.9; }
+    50% { top: 82%; opacity: 1; }
+    100% { top: 12%; opacity: 0.9; }
+}
+.laser-line {
+    animation: laserSweep 2.5s ease-in-out infinite;
+}
+.page-view {
+    display: none;
+    animation: fadeIn 0.2s ease-out forwards;
+}
+.page-view.active {
+    display: flex;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
