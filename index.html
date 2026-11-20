@@ -3,13 +3,14 @@
 <head>
     <meta charset="utf-8"/>
     <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
-    <title>Expense Tracker</title>
-    <link rel="manifest" href="./manifest.json">
+    <title>សុវណ្ណ Ledger - Expense Tracker</title>
     <!-- PWA & Mobile Meta Tags -->
     <meta content="#121316" name="theme-color"/>
+    <meta content="yes" name="mobile-web-app-capable"/>
     <meta content="yes" name="apple-mobile-web-app-capable"/>
     <meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
     <meta content="សុវណ្ណ Ledger" name="apple-mobile-web-app-title"/>
+    <link rel="manifest" href="manifest.json">
     
     <!-- Google Fonts: Kantumruy Pro & Manrope -->
     <link href="https://fonts.googleapis.com" rel="preconnect"/>
@@ -19,7 +20,6 @@
     
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -43,13 +43,18 @@
             }
         }
     </script>
-    <!-- Link to external CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-darkBg text-slate-100 font-khmer min-h-screen flex justify-center selection:bg-brand-gold selection:text-black">
     <!-- Mobile App Frame Container -->
     <div class="w-full max-w-md bg-darkBg min-h-screen flex flex-col relative shadow-2xl overflow-x-hidden border-x border-borderDim/40">
         
+        <!-- Toast Notification -->
+        <div id="toastBox" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl bg-cardElevated border border-brand-gold/50 text-xs font-bold text-white shadow-2xl flex items-center gap-2 whitespace-nowrap">
+            <span id="toastIcon" class="material-symbols-outlined text-base text-brand-gold">info</span>
+            <span id="toastMsg">សារជូនដំណឹង</span>
+        </div>
+
         <!-- ========================================== -->
         <!-- 0. PAGE: AUTH (ទំព័រ Login/Register)        -->
         <!-- ========================================== -->
@@ -86,25 +91,26 @@
         <!-- ========================================== -->
         <!-- 1. PAGE: DASHBOARD (ទំព័រដើម)            -->
         <!-- ========================================== -->
-        <div class="page-view active flex-col flex-1 pb-24" id="page-dashboard">
-            <!-- Top Header -->
-            <header class="px-5 py-4 flex items-center justify-between border-b border-borderDim sticky top-0 bg-darkBg/95 backdrop-blur-md z-30">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-goldDark to-brand-gold flex items-center justify-center shadow-lg shadow-brand-gold/20">
-                        <span class="material-symbols-outlined text-black font-bold text-xl">account_balance_wallet</span>
+        <div class="page-view flex-col flex-1 pb-24" id="page-dashboard">
+            <!-- Top Header (Banking Style Profile) -->
+            <header class="px-5 py-3.5 flex items-center justify-between border-b border-borderDim sticky top-0 bg-darkBg/95 backdrop-blur-md z-30">
+                <div class="flex items-center gap-3 cursor-pointer active:scale-95 transition" onclick="switchTab('settings')">
+                    <div class="relative shrink-0">
+                        <img src="https://lh3.googleusercontent.com/d/1PQqSpEAJXRfXbNMRe2WlmT-kN8WtSTF8" alt="Profile" class="w-11 h-11 rounded-full object-cover border-2 border-brand-gold shadow-lg shadow-brand-gold/20">
+                        <span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-darkBg rounded-full"></span>
                     </div>
                     <div>
-                        <h1 class="text-base font-bold text-white flex items-center gap-1.5 leading-tight">
-                            ទំព័រដើម
-                            <span class="text-[10px] bg-brand-gold/15 text-brand-gold px-1.5 py-0.5 rounded font-medium">KHR/USD</span>
+                        <p id="greetingText" class="text-[11px] text-slate-400 leading-tight">សួស្តី,</p>
+                        <h1 id="headerUserName" class="text-sm font-bold text-white flex items-center gap-1 leading-tight mt-0.5">
+                            Khum Phalla
+                            <span class="material-symbols-outlined text-brand-gold text-[15px]">verified</span>
                         </h1>
-                        <p class="text-[11px] text-slate-400">គ្រប់គ្រងចំណាយរបស់អ្នក</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
                     <button class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs font-medium cursor-pointer hover:bg-emerald-900/40 transition" onclick="toggleSyncModal(true)">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span id="headerSyncBadge">Online Sync</span>
+                        <span id="headerSyncBadge">Online</span>
                     </button>
                     <button class="w-8 h-8 rounded-full bg-cardBg border border-borderDim flex items-center justify-center text-slate-300 hover:text-white" onclick="switchTab('settings')">
                         <span class="material-symbols-outlined text-base">settings</span>
@@ -118,11 +124,22 @@
                 <div class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-cardBg border border-borderDim text-xs text-slate-300">
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span>អត្រាផ្លូវការ NBC ថ្ងៃនេះ៖</span>
+                        <span>អត្រា NBC៖</span>
                         <span class="font-bold text-brand-gold" id="dispNBCRate">1$ = 4,100 ៛</span>
                     </div>
                     <button class="text-[11px] text-slate-400 hover:text-brand-gold flex items-center gap-0.5" onclick="switchTab('settings')">
                         កែអត្រា <span class="material-symbols-outlined text-[13px]">chevron_right</span>
+                    </button>
+                </div>
+
+                <!-- Month Switcher -->
+                <div class="flex items-center justify-between px-3 py-2 rounded-xl bg-cardBg border border-borderDim">
+                    <button onclick="changeMonth(-1)" class="w-8 h-8 rounded-lg bg-darkBg text-slate-300 hover:text-brand-gold flex items-center justify-center active:scale-95 transition">
+                        <span class="material-symbols-outlined text-lg">chevron_left</span>
+                    </button>
+                    <span id="currentMonthLabel" class="text-xs font-bold text-white tracking-wide">ខែនេះ</span>
+                    <button onclick="changeMonth(1)" class="w-8 h-8 rounded-lg bg-darkBg text-slate-300 hover:text-brand-gold flex items-center justify-center active:scale-95 transition">
+                        <span class="material-symbols-outlined text-lg">chevron_right</span>
                     </button>
                 </div>
 
@@ -134,7 +151,10 @@
                             <span class="material-symbols-outlined text-sm">savings</span>
                             សមតុល្យសរុប (Net Balance)
                         </span>
-                        <span class="text-[10px] bg-brand-gold/20 text-brand-gold px-2 py-0.5 rounded-full border border-brand-gold/30 font-medium">គណនា Real-time</span>
+                        <button onclick="togglePrivacyMode()" class="text-slate-300 hover:text-brand-gold flex items-center gap-1 text-[11px] bg-darkBg/60 px-2.5 py-1 rounded-full border border-white/10 transition">
+                            <span id="privacyIcon" class="material-symbols-outlined text-sm">visibility</span>
+                            <span id="privacyText">បង្ហាញ</span>
+                        </button>
                     </div>
                     <div class="mt-2">
                         <div class="text-3xl font-extrabold text-white tracking-tight flex items-baseline gap-1" id="heroKHR">
@@ -176,12 +196,30 @@
                     </div>
                 </div>
 
+                <!-- Monthly Budget Limit Bar -->
+                <div class="p-3.5 rounded-2xl bg-cardBg border border-borderDim space-y-2">
+                    <div class="flex items-center justify-between text-xs">
+                        <span class="text-slate-300 font-semibold flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-brand-gold text-sm">speed</span>
+                            ថវិកាប្រចាំខែ (Budget)
+                        </span>
+                        <span id="budgetStatusText" class="text-[11px] font-bold text-emerald-400">0%</span>
+                    </div>
+                    <div class="w-full h-2 rounded-full bg-darkBg overflow-hidden">
+                        <div id="budgetProgressBar" class="h-full bg-emerald-400 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-400">
+                        <span id="budgetSpentLabel">បានចាយ៖ $0.00</span>
+                        <span id="budgetLimitLabel">កំណត់៖ $300.00</span>
+                    </div>
+                </div>
+
                 <!-- Quick Dual Currency Calculator -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-2.5">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
                             <span class="material-symbols-outlined text-brand-gold text-base">currency_exchange</span>
-                            ឧបករណ៍ប្តូរប្រាក់រហ័ស (ផ្សារទំនើប)
+                            ឧបករណ៍ប្តូរប្រាក់រហ័ស
                         </span>
                         <span class="text-[10px] text-slate-400 font-mono" id="calcRateLabel">1$ = 4,100៛</span>
                     </div>
@@ -203,18 +241,16 @@
                 <!-- Recent Transactions Section -->
                 <div class="space-y-2 pt-1">
                     <div class="flex items-center justify-between">
-                        <h2 class="text-xs font-bold text-slate-300 tracking-wide uppercase">ប្រតិបត្តិការចុងក្រោយ</h2>
+                        <h2 class="text-xs font-bold text-slate-300 tracking-wide uppercase">ប្រតិបត្តិការក្នុងខែនេះ</h2>
                         <span class="text-[11px] text-slate-500" id="txCountBadge">0 ប្រតិបត្តិការ</span>
                     </div>
-                    <div class="space-y-2" id="txListDashboard">
-                        <!-- Dynamically populated via JS -->
-                    </div>
+                    <div class="space-y-2" id="txListDashboard"></div>
                 </div>
             </main>
         </div>
 
         <!-- ========================================== -->
-        <!-- 2. PAGE: ADD TRANSACTION FORM             -->
+        <!-- 2. PAGE: ADD / EDIT TRANSACTION FORM       -->
         <!-- ========================================== -->
         <div class="page-view flex-col flex-1 pb-8" id="page-add">
             <header class="px-5 py-4 flex items-center justify-between border-b border-borderDim sticky top-0 bg-darkBg/95 backdrop-blur-md z-30">
@@ -250,7 +286,7 @@
                                 <span class="text-xs font-bold text-white">ស្កេនវិក្កយបត្រដោយស្វ័យប្រវត្តិ</span>
                                 <span class="text-[9px] bg-brand-gold text-black font-extrabold px-1.5 py-0.2 rounded">SMART OCR</span>
                             </div>
-                            <p class="text-[11px] text-slate-300 mt-0.5">ថតរូបវិក្កយបត្រដើម្បីស្រង់ទឹកប្រាក់ និងឈ្មោះហាង</p>
+                            <p class="text-[11px] text-slate-300 mt-0.5">ថតរូបវិក្កយបត្រដើម្បីស្រង់ទឹកប្រាក់</p>
                         </div>
                     </div>
                     <button class="w-full mt-3 py-2 rounded-xl bg-brand-gold text-black text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-brand-gold/20 active:scale-95 transition" onclick="switchTab('camera')" type="button">
@@ -286,48 +322,25 @@
                         <button class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-base font-bold active:scale-95 transition" data-v="7" type="button">7</button>
                         <button class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-base font-bold active:scale-95 transition" data-v="8" type="button">8</button>
                         <button class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-base font-bold active:scale-95 transition" data-v="9" type="button">9</button>
-                        <button class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-sm font-bold active:scale-95 transition" data-v="000" type="button">000</button>
+                        <button id="npSpecialBtn" class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-sm font-bold active:scale-95 transition" data-v="000" type="button">000</button>
                         <button class="np-btn py-2.5 rounded-xl bg-darkBg text-white text-base font-bold active:scale-95 transition" data-v="0" type="button">0</button>
                         <button class="py-2.5 rounded-xl bg-darkBg text-rose-400 flex items-center justify-center active:scale-95 transition" id="npBack" type="button">
                             <span class="material-symbols-outlined text-base">backspace</span>
                         </button>
                     </div>
                 </div>
+
                 <!-- Categories Selection -->
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-300">ជ្រើសរើសប្រភេទ (Category)</label>
-                    <div class="grid grid-cols-3 gap-2" id="categoryPicker">
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border-2 border-brand-gold text-brand-gold flex flex-col items-center gap-1 active:scale-95 transition" data-icon="restaurant" data-name="ម្ហូប &amp; ភេសជ្ជៈ" type="button">
-                            <span class="material-symbols-outlined text-xl">restaurant</span>
-                            <span class="text-[11px] font-semibold">ម្ហូប &amp; ភេសជ្ជៈ</span>
-                        </button>
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition" data-icon="directions_car" data-name="ធ្វើដំណើរ / សាំង" type="button">
-                            <span class="material-symbols-outlined text-xl">directions_car</span>
-                            <span class="text-[11px]">ធ្វើដំណើរ</span>
-                        </button>
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition" data-icon="bolt" data-name="ទឹកភ្លើង &amp; Wi-Fi" type="button">
-                            <span class="material-symbols-outlined text-xl">bolt</span>
-                            <span class="text-[11px]">ទឹកភ្លើង</span>
-                        </button>
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition" data-icon="shopping_bag" data-name="ទិញទំនិញ (Shopping)" type="button">
-                            <span class="material-symbols-outlined text-xl">shopping_bag</span>
-                            <span class="text-[11px]">ទិញទំនិញ</span>
-                        </button>
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition" data-icon="payments" data-name="ប្រាក់បៀវត្សរ៍ (Salary)" type="button">
-                            <span class="material-symbols-outlined text-xl">payments</span>
-                            <span class="text-[11px]">បៀវត្សរ៍</span>
-                        </button>
-                        <button class="cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition" data-icon="more_horiz" data-name="ផ្សេងៗ (Other)" type="button">
-                            <span class="material-symbols-outlined text-xl">more_horiz</span>
-                            <span class="text-[11px]">ផ្សេងៗ</span>
-                        </button>
-                    </div>
+                    <div class="grid grid-cols-3 gap-2" id="categoryPicker"></div>
                 </div>
+
                 <!-- Account Selection -->
                 <div class="space-y-1.5">
                     <label class="text-xs font-bold text-slate-300">គណនី / កាបូបលុយ (Payment Source)</label>
                     <div class="space-y-1.5">
-                        <label class="flex items-center justify-between p-3 rounded-xl bg-cardBg border border-brand-gold/40 cursor-pointer">
+                        <label class="flex items-center justify-between p-3 rounded-xl bg-cardBg border border-borderDim has-[:checked]:border-brand-gold/60 cursor-pointer transition">
                             <div class="flex items-center gap-2.5">
                                 <span class="material-symbols-outlined text-emerald-400">payments</span>
                                 <div>
@@ -337,7 +350,7 @@
                             </div>
                             <input checked="" class="text-brand-gold focus:ring-brand-gold" name="accountChoice" type="radio" value="កាបូបសាច់ប្រាក់ (Cash)"/>
                         </label>
-                        <label class="flex items-center justify-between p-3 rounded-xl bg-cardBg border border-borderDim cursor-pointer">
+                        <label class="flex items-center justify-between p-3 rounded-xl bg-cardBg border border-borderDim has-[:checked]:border-brand-gold/60 cursor-pointer transition">
                             <div class="flex items-center gap-2.5">
                                 <span class="material-symbols-outlined text-sky-400">account_balance</span>
                                 <div>
@@ -349,6 +362,16 @@
                         </label>
                     </div>
                 </div>
+
+                <!-- Date Picker -->
+                <div class="space-y-1">
+                    <label class="text-xs font-bold text-slate-300">កាលបរិច្ឆេទ (Date)</label>
+                    <div class="p-2.5 rounded-xl bg-cardBg border border-borderDim flex items-center gap-2">
+                        <span class="material-symbols-outlined text-slate-400 text-sm">calendar_today</span>
+                        <input class="w-full bg-transparent text-xs text-white outline-none [color-scheme:dark]" id="txDateInput" type="date"/>
+                    </div>
+                </div>
+
                 <!-- Note Input -->
                 <div class="space-y-1">
                     <label class="text-xs font-bold text-slate-300">ចំណាំបន្ថែម (Note)</label>
@@ -357,6 +380,7 @@
                         <input class="w-full bg-transparent text-xs text-white outline-none" id="txNoteInput" placeholder="ចំណាំ..." type="text" value=""/>
                     </div>
                 </div>
+
                 <!-- Save Button CTA -->
                 <div class="pt-2">
                     <button class="w-full py-3.5 rounded-xl bg-gradient-to-r from-brand-gold to-brand-goldDark text-black text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-brand-gold/25 active:scale-98 transition" type="submit">
@@ -368,18 +392,14 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- 3. PAGE: CAMERA SCANNER (កាមេរ៉ាស្កេនពិតប្រាកដ) -->
+        <!-- 3. PAGE: CAMERA SCANNER (OCR)              -->
         <!-- ========================================== -->
         <div class="page-view flex-col flex-1 bg-black text-white relative overflow-hidden select-none" id="page-camera">
-            
-            <!-- កន្លែងបង្ហាញរូបភាពដែលបានថត (ជំនួសរូប Mock) -->
             <div class="absolute inset-0 z-0 flex items-center justify-center bg-gray-900">
                 <img id="previewImage" alt="Receipt Preview" class="w-full h-full object-contain hidden filter brightness-75"/>
                 <div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90"></div>
                 <p id="noImageText" class="text-slate-500 absolute text-sm">មិនទាន់មានរូបភាពវិក្កយបត្រ</p>
             </div>
-
-            <!-- Top Bar -->
             <div class="relative z-20 px-5 pt-4 pb-2 flex items-center justify-between">
                 <button class="w-9 h-9 rounded-full bg-black/60 backdrop-blur-md border border-white/20 flex items-center justify-center text-white" onclick="switchTab('dashboard')">
                     <span class="material-symbols-outlined text-lg">close</span>
@@ -390,20 +410,13 @@
                 </div>
                 <div class="w-9"></div>
             </div>
-
-            <!-- Center Reticle Frame -->
             <div class="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
                 <div class="w-full aspect-[3/4] max-h-[430px] relative rounded-2xl border border-dashed border-amber-400/40">
-                    <!-- Gold Corners -->
                     <div class="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-[#f3bc3e] rounded-tl-lg"></div>
                     <div class="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-[#f3bc3e] rounded-tr-lg"></div>
                     <div class="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-[#f3bc3e] rounded-bl-lg"></div>
                     <div class="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-[#f3bc3e] rounded-br-lg"></div>
-                    
-                    <!-- Animated Laser Sweep (លាក់សិន ពេលចាប់ផ្តើមស្កេនទើបបង្ហាញ) -->
                     <div id="laserScanner" class="laser-line hidden absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-[#f3bc3e] to-transparent shadow-[0_0_12px_#f3bc3e]"></div>
-                    
-                    <!-- Detected OCR Card (បង្ហាញពេលស្កេនបានជោគជ័យ) -->
                     <div id="ocrResultCard" class="hidden absolute top-1/4 left-3 right-3 bg-black/85 backdrop-blur-md border border-[#f3bc3e]/60 rounded-xl p-3 shadow-2xl">
                         <div class="flex items-center justify-between text-xs text-amber-300 font-semibold mb-1">
                             <span class="flex items-center gap-1">
@@ -421,13 +434,8 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Shutter Controls (ហៅកាមេរ៉ា) -->
             <div class="relative z-20 px-6 pb-8 pt-3 bg-gradient-to-t from-black via-black/90 to-transparent flex flex-col items-center gap-3">
-                
-                <!-- ប្រើ Input File ដើម្បីបើកកាមេរ៉ា ឬរើសរូប -->
                 <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="processReceiptOCR(event)">
-
                 <button id="shutterBtn" class="w-16 h-16 rounded-full border-4 border-[#f3bc3e]/50 p-1 active:scale-95 transition flex items-center justify-center" onclick="document.getElementById('cameraInput').click()">
                     <div class="w-full h-full rounded-full bg-gradient-to-tr from-amber-500 to-[#f3bc3e] flex items-center justify-center text-black">
                         <span id="cameraIcon" class="material-symbols-outlined text-2xl font-bold">photo_camera</span>
@@ -446,22 +454,28 @@
                     <span class="material-symbols-outlined text-brand-gold">insights</span>
                     វិភាគ និងរបាយការណ៍
                 </h1>
-                <span class="text-xs text-brand-gold bg-brand-gold/15 px-2 py-0.5 rounded-full font-medium">ខែនេះ</span>
+                <span class="text-xs text-brand-gold bg-brand-gold/15 px-2.5 py-0.5 rounded-full font-medium" id="analyticsMonthBadge">ខែនេះ</span>
             </header>
             <main class="flex-1 px-5 pt-4 space-y-4">
+                <!-- Donut Chart Card -->
+                <div class="p-4 rounded-2xl bg-cardBg border border-borderDim flex flex-col items-center space-y-3">
+                    <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider w-full text-left">សង្ខេបចំណាយប្រចាំខែ</h2>
+                    <div class="relative w-40 h-40 rounded-full flex items-center justify-center shadow-lg" id="analyticsDonut" style="background: conic-gradient(#2a2b30 0% 100%);">
+                        <div class="w-28 h-28 rounded-full bg-cardBg flex flex-col items-center justify-center text-center px-2">
+                            <span class="text-[10px] text-slate-400">ចំណាយសរុប</span>
+                            <span id="donutTotalUSD" class="text-sm font-extrabold text-brand-gold mt-0.5">$0.00</span>
+                        </div>
+                    </div>
+                </div>
                 <!-- Breakdown Card -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-3">
                     <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">ការបែងចែកចំណាយតាមប្រភេទ</h2>
-                    <div class="space-y-2.5 pt-1" id="categoryBars">
-                        <!-- Dynamic categories -->
-                    </div>
+                    <div class="space-y-2.5 pt-1" id="categoryBars"></div>
                 </div>
                 <!-- Cash vs Bank Breakdown -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-3">
                     <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider">ប្រភពចំណាយ (Cash vs Bank)</h2>
-                    <div class="grid grid-cols-2 gap-3" id="accountBreakdown">
-                        <!-- Dynamic accounts -->
-                    </div>
+                    <div class="grid grid-cols-2 gap-3" id="accountBreakdown"></div>
                 </div>
             </main>
         </div>
@@ -478,22 +492,45 @@
                 <div class="w-8"></div>
             </header>
             <main class="flex-1 px-5 pt-4 space-y-4">
-                
+                <!-- Banking-Style Profile Card -->
+                <div class="p-5 rounded-2xl bg-gradient-to-br from-[#2a2312] via-cardBg to-cardBg border border-brand-gold/30 flex flex-col items-center text-center space-y-3 relative overflow-hidden">
+                    <div class="relative">
+                        <img src="https://lh3.googleusercontent.com/d/1PQqSpEAJXRfXbNMRe2WlmT-kN8WtSTF8" alt="Profile" class="w-20 h-20 rounded-full object-cover border-[3px] border-brand-gold shadow-xl shadow-brand-gold/20">
+                        <span class="absolute bottom-1 right-1 w-4 h-4 bg-emerald-400 border-2 border-cardBg rounded-full"></span>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-bold text-white flex items-center justify-center gap-1">
+                            Khum Phalla
+                            <span class="material-symbols-outlined text-brand-gold text-base">verified</span>
+                        </h2>
+                        <p id="settingsUserEmail" class="text-xs text-slate-400 mt-0.5">កំពុងផ្ទុក...</p>
+                    </div>
+                    <button class="px-5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold flex items-center gap-1.5 active:scale-95 transition" onclick="handleLogout()" type="button">
+                        <span class="material-symbols-outlined text-sm">logout</span>
+                        ចាកចេញពីគណនី (Logout)
+                    </button>
+                </div>
+
+                <!-- Monthly Budget Setting -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-3">
                     <h2 class="text-xs font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-sm">person</span>
-                        គណនីរបស់អ្នក
+                        <span class="material-symbols-outlined text-sm">savings</span>
+                        កំណត់ថវិកាប្រចាំខែ (Monthly Budget)
                     </h2>
-                    <button class="w-full py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold transition" onclick="handleLogout()" type="button">
-                        ចាកចេញ (Logout)
-                    </button>
+                    <div class="flex items-center justify-between bg-darkBg p-3 rounded-xl border border-borderDim">
+                        <span class="text-xs text-slate-300">កំណត់ចំណាយអតិបរមា ($)៖</span>
+                        <div class="flex items-center gap-1">
+                            <span class="text-xs text-brand-gold font-bold">$</span>
+                            <input class="w-24 bg-transparent text-right font-bold text-sm text-brand-gold outline-none" id="settingBudgetInput" type="number" value="300"/>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- NBC Rate Card -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-3">
                     <h2 class="text-xs font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1.5">
                         <span class="material-symbols-outlined text-sm">currency_exchange</span>
-                        អត្រាប្តូរប្រាក់ផ្លូវការ (NBC Exchange Rate)
+                        អត្រាប្តូរប្រាក់ផ្លូវការ (NBC Rate)
                     </h2>
                     <div class="flex items-center justify-between bg-darkBg p-3 rounded-xl border border-borderDim">
                         <span class="text-xs text-slate-300">1 ដុល្លារ ($) ស្មើនឹង៖</span>
@@ -503,6 +540,7 @@
                         </div>
                     </div>
                 </div>
+
                 <!-- Audio & Haptics Card -->
                 <div class="p-4 rounded-2xl bg-cardBg border border-borderDim space-y-3">
                     <h2 class="text-xs font-bold text-brand-gold uppercase tracking-wider flex items-center gap-1.5">
@@ -511,23 +549,29 @@
                     </h2>
                     <div class="flex items-center justify-between py-1">
                         <div>
-                            <p class="text-xs font-bold text-white">សំឡេង Royal Chime (Web Audio)</p>
+                            <p class="text-xs font-bold text-white">សំឡេង Royal Chime</p>
                             <p class="text-[10px] text-slate-400">បន្លឺសំឡេងពេលកត់ត្រាជោគជ័យ</p>
                         </div>
                         <input checked="" class="w-5 h-5 accent-brand-gold rounded cursor-pointer" id="settingSoundToggle" type="checkbox"/>
                     </div>
                     <div class="flex items-center justify-between py-1 border-t border-borderDim pt-2">
                         <div>
-                            <p class="text-xs font-bold text-white">រំញ័រទូរស័ព្ទ (Haptic Vibration)</p>
+                            <p class="text-xs font-bold text-white">រំញ័រទូរស័ព្ទ (Haptics)</p>
                             <p class="text-[10px] text-slate-400">រំញ័រពេលប៉ះប៊ូតុង</p>
                         </div>
                         <input checked="" class="w-5 h-5 accent-brand-gold rounded cursor-pointer" id="settingHapticToggle" type="checkbox"/>
                     </div>
                     <button class="w-full py-2 rounded-xl bg-darkBg border border-borderDim text-brand-gold text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition" onclick="testFeedback()" type="button">
                         <span class="material-symbols-outlined text-sm">play_circle</span>
-                        សាកល្បងសំឡេង និងរំញ័រ (Test Chime)
+                        សាកល្បងសំឡេង និងរំញ័រ
                     </button>
                 </div>
+
+                <!-- Export CSV -->
+                <button class="w-full py-3 rounded-xl bg-cardBg border border-brand-gold/40 text-brand-gold font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition" onclick="exportToCSV()" type="button">
+                    <span class="material-symbols-outlined text-base">download</span>
+                    ទាញយករបាយការណ៍ជា Excel (CSV)
+                </button>
                 
                 <button class="w-full py-3.5 rounded-xl bg-brand-gold text-black font-extrabold text-xs active:scale-98 transition shadow-lg shadow-brand-gold/20" onclick="saveSettingsForm()" type="button">
                     រក្សាទុកការកំណត់ទាំងអស់
@@ -547,7 +591,6 @@
                 <span class="material-symbols-outlined text-xl">insights</span>
                 <span class="text-[10px]">វិភាគ</span>
             </button>
-            <!-- Central Gold Action Button (FAB) -->
             <button class="-mt-7 w-12 h-12 rounded-full bg-gradient-to-tr from-brand-goldDark to-brand-gold text-black flex items-center justify-center shadow-lg shadow-brand-gold/30 hover:scale-105 active:scale-95 transition" onclick="openAddForm('expense')">
                 <span class="material-symbols-outlined text-2xl font-bold">add</span>
             </button>
@@ -561,70 +604,65 @@
             </button>
         </nav>
 
-        <!-- ========================================== -->
-        <!-- MODAL 1: SUCCESS SAVE MODAL                -->
-        <!-- ========================================== -->
+        <!-- MODAL 1: SUCCESS SAVE MODAL -->
         <div class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="successModal">
             <div class="w-full max-w-sm bg-cardBg border border-brand-gold/40 rounded-2xl p-5 space-y-4 shadow-2xl text-center">
                 <div class="w-12 h-12 rounded-full bg-brand-gold/20 text-brand-gold mx-auto flex items-center justify-center">
                     <span class="material-symbols-outlined text-2xl font-bold">cloud_done</span>
                 </div>
                 <div>
-                    <h3 class="text-sm font-bold text-white">បានរក្សាទុកក្នុង LocalStorage ជោគជ័យ!</h3>
-                    <p class="text-xs text-slate-400 mt-1">ទិន្នន័យត្រូវបានកត់ត្រាក្នុងទូរស័ព្ទ និងបន្លឺសំឡេង Royal Chime រួចរាល់។</p>
+                    <h3 class="text-sm font-bold text-white">រក្សាទុកជោគជ័យ!</h3>
+                    <p class="text-xs text-slate-400 mt-1">ទិន្នន័យត្រូវបានកត់ត្រាចូល Cloud រួចរាល់។</p>
                 </div>
                 <div class="p-3 rounded-xl bg-darkBg border border-borderDim text-xs space-y-1.5 text-left">
-                    <div class="flex justify-between"><span class="text-slate-400">ទឹកប្រាក់៖</span><span class="font-bold text-brand-gold" id="modalDispAmount">- 25,000 ៛</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">ប្រភេទ៖</span><span class="text-white" id="modalDispCat">ម្ហូប &amp; ភេសជ្ជៈ</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">គណនី៖</span><span class="text-white" id="modalDispAcc">កាបូបសាច់ប្រាក់ (Cash)</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">ទឹកប្រាក់៖</span><span class="font-bold text-brand-gold" id="modalDispAmount">- 0 ៛</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">ប្រភេទ៖</span><span class="text-white" id="modalDispCat">-</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">គណនី៖</span><span class="text-white" id="modalDispAcc">-</span></div>
                 </div>
                 <div class="grid grid-cols-2 gap-2 pt-1">
-                    <button class="py-2.5 rounded-xl bg-darkBg border border-borderDim text-slate-300 font-bold text-xs" onclick="continueAdding()" type="button">
-                        កត់ត្រាថ្មីទៀត
-                    </button>
-                    <button class="py-2.5 rounded-xl bg-brand-gold text-black font-bold text-xs flex items-center justify-center" onclick="goToDashboardAfterSave()" type="button">
-                        ទៅទំព័រដើម
-                    </button>
+                    <button class="py-2.5 rounded-xl bg-darkBg border border-borderDim text-slate-300 font-bold text-xs" onclick="continueAdding()" type="button">កត់ត្រាថ្មីទៀត</button>
+                    <button class="py-2.5 rounded-xl bg-brand-gold text-black font-bold text-xs flex items-center justify-center" onclick="goToDashboardAfterSave()" type="button">ទៅទំព័រដើម</button>
                 </div>
             </div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- MODAL 2: SYNC STATUS & QUEUE DETAILS       -->
-        <!-- ========================================== -->
+        <!-- MODAL 2: SYNC STATUS -->
         <div class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="syncModal">
             <div class="w-full max-w-sm bg-cardBg border border-brand-gold/40 rounded-2xl p-5 space-y-4 shadow-2xl">
                 <div class="flex items-center justify-between pb-2 border-b border-borderDim">
                     <div class="flex items-center gap-2">
                         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">ស្ថានភាពសមកាលកម្ម (Sync Queue)</h3>
+                        <h3 class="text-xs font-bold text-white uppercase tracking-wider">ស្ថានភាព Cloud Sync</h3>
                     </div>
                     <button class="text-slate-400 hover:text-white" onclick="toggleSyncModal(false)">
                         <span class="material-symbols-outlined text-base">close</span>
                     </button>
                 </div>
                 <div class="p-3 rounded-xl bg-darkBg border border-borderDim text-xs space-y-1.5">
-                    <div class="flex justify-between"><span class="text-slate-400">ស្ថានភាពអ៊ីនធឺណិត៖</span><span class="font-bold text-emerald-400" id="syncNetState">អនឡាញ (Online)</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">ទិន្នន័យក្នុង Queue៖</span><span class="font-bold text-brand-gold" id="syncPendingCount">0 ប្រតិបត្តិការ</span></div>
-                    <div class="flex justify-between"><span class="text-slate-400">ទំហំផ្ទុក LocalStorage៖</span><span class="text-slate-300">Active</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">ស្ថានភាពអ៊ីនធឺណិត៖</span><span class="font-bold text-emerald-400">អនឡាញ (Online)</span></div>
+                    <div class="flex justify-between"><span class="text-slate-400">មូលដ្ឋានទិន្នន័យ៖</span><span class="font-bold text-brand-gold">Supabase Cloud</span></div>
                 </div>
-                <p class="text-[11px] text-slate-400 leading-relaxed">
-                    កម្មវិធីត្រូវបានរចនាឡើងតាមស្ថាបត្យកម្ម <strong>Offline-First</strong>។ ទិន្នន័យទាំងអស់ត្រូវបានរក្សាទុកភ្លាមៗក្នុង Browser LocalStorage និងបញ្ជូនឡើង Cloud ស្វ័យប្រវត្តិ។
-                </p>
-                <button class="w-full py-2.5 rounded-xl bg-brand-gold text-black font-bold text-xs" onclick="toggleSyncModal(false)">
-                    យល់ព្រម
-                </button>
+                <button class="w-full py-2.5 rounded-xl bg-brand-gold text-black font-bold text-xs" onclick="toggleSyncModal(false)">យល់ព្រម</button>
+            </div>
+        </div>
+
+        <!-- MODAL 3: CUSTOM CONFIRM MODAL -->
+        <div class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[55] flex items-center justify-center p-4" id="confirmModal">
+            <div class="w-full max-w-xs bg-cardBg border border-rose-500/40 rounded-2xl p-5 space-y-4 shadow-2xl text-center">
+                <div class="w-11 h-11 rounded-full bg-rose-500/15 text-rose-400 mx-auto flex items-center justify-center">
+                    <span class="material-symbols-outlined text-2xl">help</span>
+                </div>
+                <p id="confirmModalMsg" class="text-xs font-semibold text-white leading-relaxed">តើអ្នកពិតជាចង់ធ្វើសកម្មភាពនេះមែនទេ?</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="closeConfirmModal()" class="py-2.5 rounded-xl bg-darkBg border border-borderDim text-slate-300 font-bold text-xs">បោះបង់</button>
+                    <button id="confirmModalYesBtn" class="py-2.5 rounded-xl bg-rose-500 text-white font-bold text-xs">យល់ព្រម</button>
+                </div>
             </div>
         </div>
     </div>
-  
-    <!-- ១. ដាក់ Supabase Script នៅទីនេះ (ពីលើ app.js) -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-    
-    <!-- ២. បន្ថែម Tesseract.js សម្រាប់ស្កេនវិក្កយបត្រ (OCR) -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-    <!-- ៣. Link ទៅកាន់កូដរបស់អ្នក -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>
