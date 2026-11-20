@@ -1,6 +1,6 @@
 /**
  * SOVANN EXPENSE LEDGER - APP.JS
- * ភ្ជាប់ជាមួយ Supabase, Auth, CRUD និង Tesseract OCR
+ * Supabase Auth, CRUD, Month Filter, Budget, Donut Chart, OCR & CSV Export
  */
 
 // --- 1. រៀបចំ SUPABASE ---
@@ -10,18 +10,20 @@ const supabaseKey = 'sb_publishable_3F1WJOvHe8x1iwYtcUPxkw_1mHm9MzE';
 let supabaseClient = null;
 if (window.supabase) {
     supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-    console.log("ភ្ជាប់ Supabase បានជោគជ័យ!");
 } else {
-    console.error("មិនអាចស្វែងរក Supabase Library ទេ។ សូមពិនិត្យមើល tag <script> នៅក្នុង HTML របស់អ្នក។");
+    console.error("មិនអាចស្វែងរក Supabase Library ទេ។");
 }
 
 // --- 2. អថេរ និងទិន្នន័យ (State) ---
 const STORAGE_KEY_SETTINGS = 'sovann_settings';
-const DEFAULT_SETTINGS = { exchangeRate: 4100, soundEnabled: true, hapticEnabled: true };
+const DEFAULT_SETTINGS = { exchangeRate: 4100, soundEnabled: true, hapticEnabled: true, monthlyBudgetUSD: 300 };
 
-let currentUser = null; 
-let currentTransactions = []; 
-let scannedResult = { amount: 0, currency: 'KHR' }; // សម្រាប់ផ្ទុកទិន្នន័យស្កេនបណ្តោះអាសន្ន
+let currentUser = null;
+let currentTransactions = [];
+let scannedResult = { amount: 0, currency: 'KHR' };
+let selectedDate = new Date();
+let isPrivacyMode = false;
+let editingTxId = null;
 
 let formState = {
     type: 'expense',
@@ -33,18 +35,61 @@ let formState = {
     note: ''
 };
 
-// --- 3. មុខងារគ្រប់គ្រងគណនី (AUTHENTICATION) ---
+// --- 3. Toast & Custom Confirm Modal ---
+let toastTimer = null;
+function showToast(msg, type = 'info') {
+    const box = document.getElementById('toastBox');
+    const icon = document.getElementById('toastIcon');
+    const text = document.getElementById('toastMsg');
+    if (!box) return alert(msg);
+
+    text.innerText = msg;
+    if (type === 'success') {
+        icon.innerText = 'check_circle';
+        icon.className = 'material-symbols-outlined text-base text-emerald-400';
+    } else if (type === 'error') {
+        icon.innerText = 'error';
+        icon.className = 'material-symbols-outlined text-base text-rose-400';
+    } else {
+        icon.innerText = 'info';
+        icon.className = 'material-symbols-outlined text-base text-brand-gold';
+    }
+
+    box.classList.remove('hidden');
+    box.classList.add('toast-show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+        box.classList.add('hidden');
+        box.classList.remove('toast-show');
+    }, 2800);
+}
+
+let confirmCallback = null;
+function openConfirmModal(msg, onYes) {
+    document.getElementById('confirmModalMsg').innerText = msg;
+    confirmCallback = onYes;
+    document.getElementById('confirmModal').classList.remove('hidden');
+}
+function closeConfirmModal() {
+    document.getElementById('confirmModal').classList.add('hidden');
+    confirmCallback = null;
+}
+document.getElementById('confirmModalYesBtn').addEventListener('click', () => {
+    if (confirmCallback) confirmCallback();
+    closeConfirmModal();
+});
+
+// --- 4. មុខងារគ្រប់គ្រងគណនី (AUTHENTICATION) ---
 async function checkUserSession() {
     if (!supabaseClient) return;
-    
     const { data: { session } } = await supabaseClient.auth.getSession();
-    
+
     if (session) {
         currentUser = session.user;
-        switchTab('dashboard'); 
+        switchTab('dashboard');
     } else {
         currentUser = null;
-        switchTab('auth'); 
+        switchTab('auth');
     }
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
@@ -62,31 +107,85 @@ async function checkUserSession() {
 async function handleLogin() {
     const email = document.getElementById('authEmail').value;
     const password = document.getElementById('authPassword').value;
-    
-    if(!email || !password) return alert("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!");
+    if (!email || !password) return showToast("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!", "error");
 
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) alert("ការចូលគណនីបរាជ័យ៖ " + error.message);
+    if (error) showToast("ការចូលគណនីបរាជ័យ៖ " + error.message, "error");
 }
 
 async function handleSignUp() {
     const email = document.getElementById('authEmail').value;
     const password = document.getElementById('authPassword').value;
-    
-    if(!email || !password) return alert("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!");
+    if (!email || !password) return showToast("សូមបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់!", "error");
 
     const { error } = await supabaseClient.auth.signUp({ email, password });
-    if (error) alert("ការបង្កើតគណនីបរាជ័យ៖ " + error.message);
-    else alert("បង្កើតគណនីជោគជ័យ! សូមចុច Login។");
+    if (error) showToast("ការបង្កើតគណនីបរាជ័យ៖ " + error.message, "error");
+    else showToast("បង្កើតគណនីជោគជ័យ! សូមចុច Login។", "success");
 }
 
-async function handleLogout() {
-    if (confirm('តើអ្នកពិតជាចង់ចាកចេញមែនទេ?')) {
+function handleLogout() {
+    openConfirmModal('តើអ្នកពិតជាចង់ចាកចេញពីគណនីមែនទេ?', async () => {
         await supabaseClient.auth.signOut();
-    }
+    });
 }
 
-// --- 4. មុខងារទូទៅ (Helper Functions) ---
+// --- 5. Categories & Helpers ---
+const CATEGORIES = {
+    expense: [
+        { name: 'ម្ហូប & ភេសជ្ជៈ', label: 'ម្ហូប & ភេសជ្ជៈ', icon: 'restaurant' },
+        { name: 'ធ្វើដំណើរ / សាំង', label: 'ធ្វើដំណើរ', icon: 'directions_car' },
+        { name: 'ទឹកភ្លើង & Wi-Fi', label: 'ទឹកភ្លើង', icon: 'bolt' },
+        { name: 'ទិញទំនិញ (Shopping)', label: 'ទិញទំនិញ', icon: 'shopping_bag' },
+        { name: 'សុខភាព / ថ្នាំ', label: 'សុខភាព', icon: 'medical_services' },
+        { name: 'ផ្សេងៗ (Other)', label: 'ផ្សេងៗ', icon: 'more_horiz' }
+    ],
+    income: [
+        { name: 'ប្រាក់បៀវត្សរ៍ (Salary)', label: 'បៀវត្សរ៍', icon: 'payments' },
+        { name: 'ប្រាក់រង្វាន់ / Bonus', label: 'ប្រាក់រង្វាន់', icon: 'redeem' },
+        { name: 'លក់ដូរ / អាជីវកម្ម', label: 'លក់ដូរ', icon: 'storefront' },
+        { name: 'ផ្សេងៗ (Other)', label: 'ផ្សេងៗ', icon: 'more_horiz' }
+    ]
+};
+
+function getIconForCategory(category) {
+    const iconMap = {
+        'ម្ហូប & ភេសជ្ជៈ': 'restaurant',
+        'ធ្វើដំណើរ / សាំង': 'directions_car',
+        'ទឹកភ្លើង & Wi-Fi': 'bolt',
+        'ទិញទំនិញ (Shopping)': 'shopping_bag',
+        'សុខភាព / ថ្នាំ': 'medical_services',
+        'ប្រាក់បៀវត្សរ៍ (Salary)': 'payments',
+        'ប្រាក់រង្វាន់ / Bonus': 'redeem',
+        'លក់ដូរ / អាជីវកម្ម': 'storefront',
+        'ផ្សេងៗ (Other)': 'more_horiz'
+    };
+    return iconMap[category] || 'receipt_long';
+}
+
+function renderCategoryPicker(type) {
+    const picker = document.getElementById('categoryPicker');
+    const items = CATEGORIES[type] || CATEGORIES.expense;
+    formState.category = items[0].name;
+    formState.icon = items[0].icon;
+
+    picker.innerHTML = items.map((cat, idx) => `
+        <button class="cat-pill p-2.5 rounded-xl bg-cardBg ${idx === 0 ? 'border-2 border-brand-gold text-brand-gold' : 'border border-borderDim text-slate-300'} flex flex-col items-center gap-1 active:scale-95 transition"
+            data-icon="${cat.icon}" data-name="${cat.name}" type="button" onclick="selectCategory(this)">
+            <span class="material-symbols-outlined text-xl">${cat.icon}</span>
+            <span class="text-[11px] font-semibold">${cat.label}</span>
+        </button>
+    `).join('');
+}
+
+function selectCategory(pill) {
+    document.querySelectorAll('.cat-pill').forEach(p => {
+        p.className = 'cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition';
+    });
+    pill.className = 'cat-pill p-2.5 rounded-xl bg-cardBg border-2 border-brand-gold text-brand-gold flex flex-col items-center gap-1 active:scale-95 transition';
+    formState.category = pill.getAttribute('data-name');
+    formState.icon = pill.getAttribute('data-icon');
+}
+
 function initDataStore() {
     if (!localStorage.getItem(STORAGE_KEY_SETTINGS)) {
         localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
@@ -94,7 +193,7 @@ function initDataStore() {
 }
 
 function getSettings() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS)) || DEFAULT_SETTINGS; } 
+    try { return { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(STORAGE_KEY_SETTINGS)) }; }
     catch (e) { return DEFAULT_SETTINGS; }
 }
 
@@ -109,8 +208,7 @@ function playRoyalFeedback(type = 'success') {
             if (!AudioContext) return;
             const ctx = new AudioContext();
             const now = ctx.currentTime;
-            
-            let notes = type === 'success' ? [523.25, 659.25, 783.99] : [392.00, 329.63, 261.63]; 
+            let notes = type === 'success' ? [523.25, 659.25, 783.99] : [392.00, 329.63, 261.63];
             notes.forEach((freq, idx) => {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
@@ -127,7 +225,7 @@ function playRoyalFeedback(type = 'success') {
     }
 }
 
-// --- 5. មុខងារបញ្ជាអេក្រង់ (Navigation) ---
+// --- 6. Navigation & Filters ---
 function switchTab(pageId) {
     document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
     const target = document.getElementById('page-' + pageId);
@@ -136,37 +234,80 @@ function switchTab(pageId) {
         window.scrollTo(0, 0);
     }
 
-    const navItems = ['dashboard', 'analytics', 'camera', 'settings'];
-    navItems.forEach(item => {
+    ['dashboard', 'analytics', 'camera', 'settings'].forEach(item => {
         const btn = document.getElementById('nav-' + item);
         if (btn) {
-            btn.className = (item === pageId) 
-                ? 'flex flex-col items-center text-brand-gold gap-0.5' 
+            btn.className = (item === pageId)
+                ? 'flex flex-col items-center text-brand-gold gap-0.5'
                 : 'flex flex-col items-center text-slate-400 hover:text-slate-200 gap-0.5';
         }
     });
 
     const dock = document.getElementById('bottomDock');
-    if (pageId === 'camera' || pageId === 'add' || pageId === 'auth') {
-        dock.style.display = 'none';
-    } else {
-        dock.style.display = 'flex';
-    }
+    dock.style.display = (pageId === 'camera' || pageId === 'add' || pageId === 'auth') ? 'none' : 'flex';
 
     if (pageId === 'dashboard') loadAndRenderDashboard();
     if (pageId === 'analytics') renderAnalytics();
     if (pageId === 'settings') renderSettings();
 }
 
+function changeMonth(delta) {
+    selectedDate.setMonth(selectedDate.getMonth() + delta);
+    renderDashboardUI();
+    renderAnalytics();
+}
+
+function getMonthlyTransactions() {
+    const targetMonth = selectedDate.getMonth();
+    const targetYear = selectedDate.getFullYear();
+    return currentTransactions.filter(tx => {
+        const d = new Date(tx.created_at || Date.now());
+        return d.getMonth() === targetMonth && d.getFullYear() === targetYear;
+    });
+}
+
+function togglePrivacyMode() {
+    isPrivacyMode = !isPrivacyMode;
+    document.getElementById('privacyIcon').innerText = isPrivacyMode ? 'visibility_off' : 'visibility';
+    document.getElementById('privacyText').innerText = isPrivacyMode ? 'លាក់' : 'បង្ហាញ';
+    renderDashboardUI();
+}
+
+// --- 7. Add / Edit Form Logic ---
 function openAddForm(type = 'expense') {
+    editingTxId = null;
     setTxType(type);
     formState.rawAmount = '0';
     document.getElementById('txNoteInput').value = '';
+    document.getElementById('txDateInput').value = new Date().toISOString().split('T')[0];
     updateFormAmountDisplay();
     switchTab('add');
 }
 
-// --- 6. មុខងារទម្រង់បញ្ចូលទិន្នន័យ (Form Logic) ---
+function editTransaction(id) {
+    const tx = currentTransactions.find(t => String(t._id) === String(id));
+    if (!tx) return;
+
+    editingTxId = tx._id;
+    setTxType(tx.type);
+    setCurrency(tx.currency);
+    formState.rawAmount = String(tx.amount);
+    formState.category = tx.category;
+    document.getElementById('txNoteInput').value = tx.note || '';
+    document.getElementById('txDateInput').value = tx.created_at ? new Date(tx.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+
+    document.querySelectorAll('input[name="accountChoice"]').forEach(r => {
+        if (r.value === tx.account) r.checked = true;
+    });
+    document.querySelectorAll('.cat-pill').forEach(p => {
+        if (p.getAttribute('data-name') === tx.category) selectCategory(p);
+    });
+
+    document.getElementById('formHeaderTitle').innerText = 'កែសម្រួលប្រតិបត្តិការ (Edit)';
+    updateFormAmountDisplay();
+    switchTab('add');
+}
+
 function setTxType(type) {
     formState.type = type;
     const btnExp = document.getElementById('tabExpense');
@@ -179,32 +320,39 @@ function setTxType(type) {
         btnInc.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 transition';
         sign.className = 'text-rose-400';
         sign.innerText = '-';
-        headerTitle.innerText = 'កត់ត្រាចំណាយ (Add Expense)';
+        headerTitle.innerText = editingTxId ? 'កែសម្រួលប្រតិបត្តិការ (Edit)' : 'កត់ត្រាចំណាយ (Add Expense)';
     } else {
         btnInc.className = 'py-2 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center gap-1 transition';
         btnExp.className = 'py-2 rounded-lg text-slate-400 hover:text-slate-200 flex items-center justify-center gap-1 transition';
         sign.className = 'text-emerald-400';
         sign.innerText = '+';
-        headerTitle.innerText = 'កត់ត្រាចំណូល (Add Income)';
+        headerTitle.innerText = editingTxId ? 'កែសម្រួលប្រតិបត្តិការ (Edit)' : 'កត់ត្រាចំណូល (Add Income)';
     }
+    renderCategoryPicker(type);
 }
 
 function setCurrency(curr) {
     formState.currency = curr;
     const khrBtn = document.getElementById('formCurrKHR');
     const usdBtn = document.getElementById('formCurrUSD');
+    const specialBtn = document.getElementById('npSpecialBtn');
+
     if (curr === 'KHR') {
         khrBtn.className = 'px-3 py-1 rounded bg-brand-gold text-black transition';
         usdBtn.className = 'px-3 py-1 rounded text-slate-400 hover:text-white transition';
+        if (specialBtn) { specialBtn.innerText = '000'; specialBtn.setAttribute('data-v', '000'); }
+        formState.rawAmount = formState.rawAmount.split('.')[0] || '0';
     } else {
         usdBtn.className = 'px-3 py-1 rounded bg-brand-gold text-black transition';
         khrBtn.className = 'px-3 py-1 rounded text-slate-400 hover:text-white transition';
+        if (specialBtn) { specialBtn.innerText = '.'; specialBtn.setAttribute('data-v', '.'); }
     }
     updateFormAmountDisplay();
 }
 
 function updateFormAmountDisplay() {
-    const num = Number(formState.rawAmount || 0);
+    const raw = formState.rawAmount || '0';
+    const num = Number(raw) || 0;
     const rate = Number(getSettings().exchangeRate) || 4100;
     const disp = document.getElementById('amountDisplay');
     const unit = document.getElementById('amountUnit');
@@ -212,7 +360,12 @@ function updateFormAmountDisplay() {
     const rateLabel = document.getElementById('formRateLabel');
 
     rateLabel.innerText = `1$ = ${rate.toLocaleString()} ៛`;
-    disp.value = num.toLocaleString();
+    if (raw.includes('.')) {
+        const [intPart, decPart] = raw.split('.');
+        disp.value = `${Number(intPart || 0).toLocaleString()}.${decPart}`;
+    } else {
+        disp.value = num.toLocaleString();
+    }
 
     if (formState.currency === 'KHR') {
         unit.innerText = '៛';
@@ -226,8 +379,14 @@ function updateFormAmountDisplay() {
 document.querySelectorAll('.np-btn').forEach(btn => {
     btn.addEventListener('click', () => {
         const v = btn.getAttribute('data-v');
-        if (formState.rawAmount === '0') formState.rawAmount = v;
-        else formState.rawAmount += v;
+        if (v === '.') {
+            if (!formState.rawAmount.includes('.')) formState.rawAmount += '.';
+        } else if (formState.rawAmount === '0') {
+            formState.rawAmount = v === '000' ? '0' : v;
+        } else {
+            if (formState.rawAmount.includes('.') && formState.rawAmount.split('.')[1].length >= 2) return;
+            formState.rawAmount += v;
+        }
         updateFormAmountDisplay();
     });
 });
@@ -238,18 +397,7 @@ document.getElementById('npBack').addEventListener('click', () => {
     updateFormAmountDisplay();
 });
 
-document.querySelectorAll('.cat-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
-        document.querySelectorAll('.cat-pill').forEach(p => {
-            p.className = 'cat-pill p-2.5 rounded-xl bg-cardBg border border-borderDim text-slate-300 flex flex-col items-center gap-1 active:scale-95 transition';
-        });
-        pill.className = 'cat-pill p-2.5 rounded-xl bg-cardBg border-2 border-brand-gold text-brand-gold flex flex-col items-center gap-1 active:scale-95 transition';
-        formState.category = pill.getAttribute('data-name');
-        formState.icon = pill.getAttribute('data-icon');
-    });
-});
-
-// --- 7. កាមេរ៉ាស្កេន និង OCR (Tesseract.js) ---
+// --- 8. OCR Scanner (Tesseract.js) ---
 async function processReceiptOCR(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -257,44 +405,33 @@ async function processReceiptOCR(event) {
     const previewImage = document.getElementById('previewImage');
     const noImageText = document.getElementById('noImageText');
     const ocrResultCard = document.getElementById('ocrResultCard');
-    
     previewImage.src = URL.createObjectURL(file);
     previewImage.classList.remove('hidden');
     noImageText.classList.add('hidden');
-    ocrResultCard.classList.add('hidden'); 
+    ocrResultCard.classList.add('hidden');
 
     const statusText = document.getElementById('cameraStatusText');
     const icon = document.getElementById('cameraIcon');
     const laser = document.getElementById('laserScanner');
     const shutterBtn = document.getElementById('shutterBtn');
-    
+
     shutterBtn.disabled = true;
-    laser.classList.remove('hidden'); 
+    laser.classList.remove('hidden');
     statusText.innerText = "កំពុងរៀបចំ AI...";
     statusText.classList.replace('text-slate-400', 'text-brand-gold');
     icon.innerText = "sync";
     icon.classList.add("animate-spin");
 
     try {
-        if(typeof Tesseract === 'undefined') {
-            alert("Tesseract Library មិនទាន់ដំណើរការទេ។");
-            return;
-        }
-
+        if (typeof Tesseract === 'undefined') return showToast("Tesseract Library មិនទាន់ដំណើរការទេ។", "error");
         const result = await Tesseract.recognize(file, 'eng', {
             logger: m => {
-                if (m.status === 'recognizing text') {
-                    statusText.innerText = `កំពុងវិភាគ... ${Math.round(m.progress * 100)}%`;
-                }
+                if (m.status === 'recognizing text') statusText.innerText = `កំពុងវិភាគ... ${Math.round(m.progress * 100)}%`;
             }
         });
 
-        const text = result.data.text;
-        console.log("អត្ថបទស្កេនបាន:\n", text);
-
-        const numberMatches = text.match(/\d+([.,]\d+)?/g);
+        const numberMatches = result.data.text.match(/\d+([.,]\d+)?/g);
         let highestAmount = 0;
-        
         if (numberMatches) {
             numberMatches.forEach(numStr => {
                 const val = parseFloat(numStr.replace(/,/g, ''));
@@ -305,22 +442,17 @@ async function processReceiptOCR(event) {
         if (highestAmount > 0) {
             scannedResult.currency = highestAmount > 1000 ? 'KHR' : 'USD';
             scannedResult.amount = highestAmount;
-
             document.getElementById('ocrAmount').innerText = highestAmount.toLocaleString();
             document.getElementById('ocrCurrency').innerText = scannedResult.currency === 'KHR' ? '៛' : '$';
             ocrResultCard.classList.remove('hidden');
-            
             statusText.innerText = "ស្កេនជោគជ័យ!";
             playRoyalFeedback('success');
-            
         } else {
-            alert("សុំទោស AI មិនអាចរកឃើញតួលេខទឹកប្រាក់ក្នុងរូបភាពនេះទេ។");
+            showToast("AI មិនអាចរកឃើញតួលេខទឹកប្រាក់ក្នុងរូបនេះទេ", "error");
             statusText.innerText = "ស្កេនបរាជ័យ";
         }
-
     } catch (err) {
-        console.error("OCR Error:", err);
-        alert("មានបញ្ហាក្នុងការស្កេនរូបភាព។");
+        showToast("មានបញ្ហាក្នុងការស្កេនរូបភាព", "error");
         statusText.innerText = "មានបញ្ហា";
     } finally {
         icon.innerText = "photo_camera";
@@ -328,55 +460,48 @@ async function processReceiptOCR(event) {
         laser.classList.add('hidden');
         statusText.classList.replace('text-brand-gold', 'text-slate-400');
         shutterBtn.disabled = false;
-        event.target.value = ''; 
+        event.target.value = '';
     }
 }
 
 function applyScannedData() {
-    formState.type = 'expense';
-    formState.currency = scannedResult.currency;
-    formState.rawAmount = scannedResult.amount.toString();
-    formState.category = 'ផ្សេងៗ (Other)'; 
-    formState.icon = 'more_horiz';
-    
-    document.getElementById('txNoteInput').value = 'វិក្កយបត្រ (បានស្កេន)';
-    
+    editingTxId = null;
     setTxType('expense');
-    setCurrency(formState.currency);
+    setCurrency(scannedResult.currency);
+    formState.rawAmount = scannedResult.amount.toString();
+    document.getElementById('txNoteInput').value = 'វិក្កយបត្រ (បានស្កេន)';
+    document.getElementById('txDateInput').value = new Date().toISOString().split('T')[0];
     updateFormAmountDisplay();
-    
     switchTab('add');
 }
 
-
-// --- 8. SUPABASE CRUD (បញ្ជូន ទាញ និងលុប) ---
+// --- 9. SUPABASE CRUD ---
 document.getElementById('txForm').addEventListener('submit', (e) => {
     e.preventDefault();
     saveCurrentFormTransaction();
 });
 
 async function saveCurrentFormTransaction() {
-    if (!supabaseClient || !currentUser) {
-        alert("សូម Login ជាមុនសិនទើបអាចរក្សាទុកបាន!");
-        return;
-    }
+    if (!supabaseClient || !currentUser) return showToast("សូម Login ជាមុនសិន!", "error");
 
     const rate = Number(getSettings().exchangeRate) || 4100;
     const num = Number(formState.rawAmount || 0);
-
-    if (num <= 0) return alert("សូមបញ្ចូលចំនួនទឹកប្រាក់!");
+    if (num <= 0) return showToast("សូមបញ្ចូលចំនួនទឹកប្រាក់!", "error");
 
     const accountVal = document.querySelector('input[name="accountChoice"]:checked').value;
     const noteVal = document.getElementById('txNoteInput').value;
+    const dateVal = document.getElementById('txDateInput').value;
+    const txDateISO = dateVal ? new Date(dateVal + 'T12:00:00').toISOString() : new Date().toISOString();
 
-    const newTx = {
+    const txPayload = {
         user_id: currentUser.id,
         type: formState.type,
         amount: num,
         currency: formState.currency,
         category: formState.category,
         note: noteVal,
-        account: accountVal
+        account: accountVal,
+        created_at: txDateISO
     };
 
     try {
@@ -385,38 +510,42 @@ async function saveCurrentFormTransaction() {
         submitBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">refresh</span> កំពុងរក្សាទុក...';
         submitBtn.disabled = true;
 
-        const { error } = await supabaseClient.from('transactions').insert([newTx]);
-            
+        let error;
+        if (editingTxId) {
+            ({ error } = await supabaseClient.from('transactions').update(txPayload).eq('_id', editingTxId));
+        } else {
+            txPayload._id = Date.now();
+            ({ error } = await supabaseClient.from('transactions').insert([txPayload]));
+        }
+
         submitBtn.innerHTML = originalBtnText;
         submitBtn.disabled = false;
 
-        if (error) {
-            console.error(error);
-            return alert("បរាជ័យក្នុងការរក្សាទុកទៅកាន់ Cloud។ សូមពិនិត្យ Column 'account' ក្នុង Database។");
-        }
+        if (error) return showToast("បរាជ័យ៖ " + error.message, "error");
 
         playRoyalFeedback('success');
+        if (editingTxId) {
+            showToast("កែសម្រួលជោគជ័យ!", "success");
+            editingTxId = null;
+            switchTab('dashboard');
+            return;
+        }
 
         let khr = formState.currency === 'KHR' ? num : Math.round(num * rate);
         let usd = formState.currency === 'KHR' ? Number((num / rate).toFixed(2)) : num;
-        
         const prefix = formState.type === 'expense' ? '-' : '+';
+
         document.getElementById('modalDispAmount').innerText = `${prefix} ${khr.toLocaleString()} ៛ (≈ $${usd.toFixed(2)})`;
         document.getElementById('modalDispCat').innerText = formState.category;
         document.getElementById('modalDispAcc').innerText = accountVal;
-
-        document.querySelector('#successModal h3').innerText = "រក្សាទុកជោគជ័យ!";
-        document.querySelector('#successModal p').innerText = "ទិន្នន័យត្រូវបានកត់ត្រាចូល Cloud រួចរាល់។";
         document.getElementById('successModal').classList.remove('hidden');
-
     } catch (err) {
-        alert("មានកំហុសប្រព័ន្ធ!");
+        showToast("មានកំហុសប្រព័ន្ធ!", "error");
     }
 }
 
 async function loadAndRenderDashboard() {
     if (!supabaseClient || !currentUser) return;
-
     try {
         document.getElementById('txListDashboard').innerHTML = `
             <div class="flex justify-center p-6">
@@ -437,109 +566,144 @@ async function loadAndRenderDashboard() {
     }
 }
 
-async function deleteTransaction(id) {
-    if (!confirm('តើអ្នកពិតជាចង់លុបប្រតិបត្តិការនេះមែនទេ?')) return;
-    if (!supabaseClient) return;
-
-    try {
-        const { error } = await supabaseClient.from('transactions').delete().eq('id', id);
-        if (error) throw error;
+function deleteTransaction(id, event) {
+    if (event) event.stopPropagation();
+    openConfirmModal('តើអ្នកពិតជាចង់លុបប្រតិបត្តិការនេះមែនទេ?', async () => {
+        if (!supabaseClient) return;
+        const { error } = await supabaseClient.from('transactions').delete().eq('_id', id);
+        if (error) return showToast("មានបញ្ហាក្នុងការលុបទិន្នន័យ", "error");
         playRoyalFeedback('delete');
+        showToast("បានលុបប្រតិបត្តិការរួចរាល់", "success");
         loadAndRenderDashboard();
-    } catch (error) {
-        alert("មានបញ្ហាក្នុងការលុបទិន្នន័យ។");
-    }
+    });
 }
 
-// --- 9. មុខងារបង្ហាញ UI (Render Functions) ---
-function getIconForCategory(category) {
-    const iconMap = {
-        'ម្ហូប & ភេសជ្ជៈ': 'restaurant',
-        'ធ្វើដំណើរ / សាំង': 'directions_car',
-        'ទឹកភ្លើង & Wi-Fi': 'bolt',
-        'ទិញទំនិញ (Shopping)': 'shopping_bag',
-        'ប្រាក់បៀវត្សរ៍ (Salary)': 'payments',
-        'ផ្សេងៗ (Other)': 'more_horiz'
-    };
-    return iconMap[category] || 'receipt_long';
-}
-
+// --- 10. Render UI (Dashboard & Analytics) ---
 function renderDashboardUI() {
-    const rate = Number(getSettings().exchangeRate) || 4100;
-    const list = currentTransactions;
+    const hour = new Date().getHours();
+    const greetingEl = document.getElementById('greetingText');
+    if (greetingEl) {
+        if (hour < 12) greetingEl.innerText = 'អរុណសួស្តី,';
+        else if (hour < 18) greetingEl.innerText = 'ទិវាសួស្តី,';
+        else greetingEl.innerText = 'សាយ័ណ្ហសួស្តី,';
+    }
 
+    const settings = getSettings();
+    const rate = Number(settings.exchangeRate) || 4100;
+    const budgetUSD = Number(settings.monthlyBudgetUSD) || 300;
+    const list = getMonthlyTransactions();
+
+    const monthLabel = selectedDate.toLocaleDateString('km-KH', { month: 'long', year: 'numeric' });
+    document.getElementById('currentMonthLabel').innerText = monthLabel;
     document.getElementById('dispNBCRate').innerText = `1$ = ${rate.toLocaleString()} ៛`;
     document.getElementById('calcRateLabel').innerText = `1$ = ${rate.toLocaleString()}៛`;
 
     let totalIncKHR = 0, totalIncUSD = 0, totalExpKHR = 0, totalExpUSD = 0;
-
     list.forEach(item => {
         let khr = item.currency === 'KHR' ? item.amount : (item.amount * rate);
         let usd = item.currency === 'USD' ? item.amount : (item.amount / rate);
-
-        if (item.type === 'income') {
-            totalIncKHR += khr; totalIncUSD += usd;
-        } else {
-            totalExpKHR += khr; totalExpUSD += usd;
-        }
+        if (item.type === 'income') { totalIncKHR += khr; totalIncUSD += usd; }
+        else { totalExpKHR += khr; totalExpUSD += usd; }
     });
 
     const netKHR = totalIncKHR - totalExpKHR;
     const netUSD = totalIncUSD - totalExpUSD;
 
-    document.getElementById('heroKHR').innerHTML = `${netKHR.toLocaleString()} <span class="text-brand-gold text-2xl font-bold">៛</span>`;
-    document.getElementById('heroUSD').innerText = `≈ $${netUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-    document.getElementById('monthIncUSD').innerText = `+$${totalIncUSD.toFixed(2)}`;
-    document.getElementById('monthIncKHR').innerText = `${totalIncKHR.toLocaleString()} ៛`;
-    document.getElementById('monthExpUSD').innerText = `-$${totalExpUSD.toFixed(2)}`;
-    document.getElementById('monthExpKHR').innerText = `${totalExpKHR.toLocaleString()} ៛`;
+    document.getElementById('heroKHR').innerHTML = isPrivacyMode ? `•••••• <span class="text-brand-gold text-2xl font-bold">៛</span>` : `${netKHR.toLocaleString()} <span class="text-brand-gold text-2xl font-bold">៛</span>`;
+    document.getElementById('heroUSD').innerText = isPrivacyMode ? `≈ $•••• USD` : `≈ $${netUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+    document.getElementById('monthIncUSD').innerText = isPrivacyMode ? `+$••••` : `+$${totalIncUSD.toFixed(2)}`;
+    document.getElementById('monthIncKHR').innerText = isPrivacyMode ? `•••• ៛` : `${totalIncKHR.toLocaleString()} ៛`;
+    document.getElementById('monthExpUSD').innerText = isPrivacyMode ? `-$••••` : `-$${totalExpUSD.toFixed(2)}`;
+    document.getElementById('monthExpKHR').innerText = isPrivacyMode ? `•••• ៛` : `${totalExpKHR.toLocaleString()} ៛`;
     document.getElementById('txCountBadge').innerText = `${list.length} ប្រតិបត្តិការ`;
 
+    // Budget Progress
+    const pct = Math.min(Math.round((totalExpUSD / budgetUSD) * 100), 100);
+    const bar = document.getElementById('budgetProgressBar');
+    const statusTxt = document.getElementById('budgetStatusText');
+    bar.style.width = `${pct}%`;
+    statusTxt.innerText = `${Math.round((totalExpUSD / budgetUSD) * 100)}%`;
+
+    if (totalExpUSD > budgetUSD) {
+        bar.className = 'h-full bg-rose-500 rounded-full transition-all duration-300';
+        statusTxt.className = 'text-[11px] font-bold text-rose-400';
+    } else if (pct >= 80) {
+        bar.className = 'h-full bg-amber-400 rounded-full transition-all duration-300';
+        statusTxt.className = 'text-[11px] font-bold text-amber-400';
+    } else {
+        bar.className = 'h-full bg-emerald-400 rounded-full transition-all duration-300';
+        statusTxt.className = 'text-[11px] font-bold text-emerald-400';
+    }
+    document.getElementById('budgetSpentLabel').innerText = isPrivacyMode ? 'បានចាយ៖ $••••' : `បានចាយ៖ $${totalExpUSD.toFixed(2)}`;
+    document.getElementById('budgetLimitLabel').innerText = `កំណត់៖ $${budgetUSD.toFixed(2)}`;
+
+    // Group by Date
     const container = document.getElementById('txListDashboard');
     if (list.length === 0) {
-        container.innerHTML = `<div class="p-6 text-center text-xs text-slate-500 bg-cardBg rounded-2xl border border-borderDim">មិនទាន់មានប្រតិបត្តិការនៅឡើយទេ</div>`;
+        container.innerHTML = `<div class="p-6 text-center text-xs text-slate-500 bg-cardBg rounded-2xl border border-borderDim">មិនទាន់មានប្រតិបត្តិការក្នុងខែនេះទេ</div>`;
         return;
     }
 
-    container.innerHTML = list.map(item => {
-        const isExp = item.type === 'expense';
-        const color = isExp ? 'text-rose-400' : 'text-emerald-400';
-        const sign = isExp ? '-' : '+';
-        const iconBg = isExp ? 'bg-amber-500/10 text-brand-gold' : 'bg-emerald-500/10 text-emerald-400';
-        let khr = item.currency === 'KHR' ? item.amount : (item.amount * rate);
-        let usd = item.currency === 'USD' ? item.amount : (item.amount / rate);
-        const displayIcon = getIconForCategory(item.category);
+    const todayStr = new Date().toDateString();
+    const yesterdayStr = new Date(Date.now() - 86400000).toDateString();
+    const groups = {};
 
-        return `
-            <div class="p-3 rounded-2xl bg-cardBg border border-borderDim flex items-center justify-between group relative overflow-hidden">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0">
-                        <span class="material-symbols-outlined text-xl">${displayIcon}</span>
+    list.forEach(item => {
+        const d = new Date(item.created_at || Date.now());
+        let label = d.toLocaleDateString('km-KH', { day: '2-digit', month: 'short', year: 'numeric' });
+        if (d.toDateString() === todayStr) label = 'ថ្ងៃនេះ (Today)';
+        else if (d.toDateString() === yesterdayStr) label = 'ម្សិលមិញ (Yesterday)';
+        if (!groups[label]) groups[label] = [];
+        groups[label].push(item);
+    });
+
+    container.innerHTML = Object.keys(groups).map(dateLabel => `
+        <div class="space-y-2 pt-1">
+            <p class="text-[10px] font-bold text-slate-400 px-1">${dateLabel}</p>
+            ${groups[dateLabel].map(item => {
+                const isExp = item.type === 'expense';
+                const color = isExp ? 'text-rose-400' : 'text-emerald-400';
+                const sign = isExp ? '-' : '+';
+                const iconBg = isExp ? 'bg-amber-500/10 text-brand-gold' : 'bg-emerald-500/10 text-emerald-400';
+                let khr = item.currency === 'KHR' ? item.amount : (item.amount * rate);
+                let usd = item.currency === 'USD' ? item.amount : (item.amount / rate);
+                const displayIcon = getIconForCategory(item.category);
+
+                return `
+                    <div onclick="editTransaction('${item._id}')" class="p-3 rounded-2xl bg-cardBg border border-borderDim hover:border-brand-gold/40 flex items-center justify-between cursor-pointer active:scale-[0.99] transition">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0">
+                                <span class="material-symbols-outlined text-xl">${displayIcon}</span>
+                            </div>
+                            <div class="min-w-0">
+                                <p class="text-xs font-semibold text-slate-100 truncate">${item.note || item.category}</p>
+                                <p class="text-[10px] text-slate-400 truncate">${item.category} • ${item.account && item.account.includes('Cash') ? 'Cash' : 'ABA'}</p>
+                            </div>
+                        </div>
+                        <div class="text-right flex items-center gap-2 shrink-0">
+                            <div>
+                                <p class="text-xs font-bold ${color} whitespace-nowrap">${sign} ${khr.toLocaleString()} ៛</p>
+                                <p class="text-[10px] text-slate-400">≈ $${usd.toFixed(2)}</p>
+                            </div>
+                            <button onclick="deleteTransaction('${item._id}', event)" class="ml-1 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 transition active:scale-95">
+                                <span class="material-symbols-outlined text-base">delete</span>
+                            </button>
+                        </div>
                     </div>
-                    <div class="min-w-0">
-                        <p class="text-xs font-semibold text-slate-100 truncate">${item.note || item.category}</p>
-                        <p class="text-[10px] text-slate-400 truncate">${item.category}</p>
-                    </div>
-                </div>
-                <div class="text-right flex items-center gap-2">
-                    <div>
-                        <p class="text-xs font-bold ${color} whitespace-nowrap">${sign} ${khr.toLocaleString()} ៛</p>
-                        <p class="text-[10px] text-slate-400">≈ $${usd.toFixed(2)}</p>
-                    </div>
-                    <button onclick="deleteTransaction('${item.id}')" class="ml-1 p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/30 transition opacity-80 hover:opacity-100 active:scale-95">
-                        <span class="material-symbols-outlined text-base">delete</span>
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
+                `;
+            }).join('')}
+        </div>
+    `).join('');
 }
 
 function renderAnalytics() {
-    const list = currentTransactions;
+    const list = getMonthlyTransactions();
     const catTotals = {};
     let totalExpense = 0;
     const rate = Number(getSettings().exchangeRate) || 4100;
+
+    const badge = document.getElementById('analyticsMonthBadge');
+    if (badge) badge.innerText = selectedDate.toLocaleDateString('km-KH', { month: 'short', year: 'numeric' });
 
     list.filter(t => t.type === 'expense').forEach(t => {
         let khr = t.currency === 'KHR' ? t.amount : (t.amount * rate);
@@ -547,21 +711,39 @@ function renderAnalytics() {
         totalExpense += khr;
     });
 
-    const container = document.getElementById('categoryBars');
-    if (Object.keys(catTotals).length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-500 py-4 text-center">មិនទាន់មានទិន្នន័យចំណាយនៅឡើយទេ</div>`;
+    const donut = document.getElementById('analyticsDonut');
+    const donutTotal = document.getElementById('donutTotalUSD');
+    const colors = ['#f3bc3e', '#34d399', '#fb7185', '#38bdf8', '#a78bfa', '#fb923c'];
+    donutTotal.innerText = `$${(totalExpense / rate).toFixed(2)}`;
+
+    const cats = Object.keys(catTotals);
+    if (cats.length === 0) {
+        donut.style.background = 'conic-gradient(#2a2b30 0% 100%)';
+        document.getElementById('categoryBars').innerHTML = `<div class="text-xs text-slate-500 py-4 text-center">មិនទាន់មានទិន្នន័យចំណាយក្នុងខែនេះទេ</div>`;
     } else {
-        container.innerHTML = Object.keys(catTotals).map(cat => {
+        let currentPct = 0;
+        const stops = cats.map((cat, idx) => {
+            const pct = (catTotals[cat] / totalExpense) * 100;
+            const start = currentPct;
+            currentPct += pct;
+            return `${colors[idx % colors.length]} ${start}% ${currentPct}%`;
+        });
+        donut.style.background = `conic-gradient(${stops.join(', ')})`;
+
+        document.getElementById('categoryBars').innerHTML = cats.map((cat, idx) => {
             const amount = catTotals[cat];
-            const pct = totalExpense > 0 ? Math.round((amount / totalExpense) * 100) : 0;
+            const pct = Math.round((amount / totalExpense) * 100);
+            const c = colors[idx % colors.length];
             return `
                 <div class="space-y-1">
                     <div class="flex justify-between text-xs">
-                        <span class="text-slate-300">${cat}</span>
+                        <span class="text-slate-300 flex items-center gap-1.5">
+                            <span class="w-2.5 h-2.5 rounded-full" style="background:${c}"></span>${cat}
+                        </span>
                         <span class="font-bold text-brand-gold">${amount.toLocaleString()} ៛ (${pct}%)</span>
                     </div>
                     <div class="w-full h-2 rounded-full bg-darkBg overflow-hidden">
-                        <div class="h-full bg-gradient-to-r from-brand-goldDark to-brand-gold rounded-full" style="width: ${pct}%"></div>
+                        <div class="h-full rounded-full" style="width: ${pct}%; background:${c}"></div>
                     </div>
                 </div>
             `;
@@ -587,6 +769,7 @@ function renderAnalytics() {
     `;
 }
 
+// --- 11. Settings, Modals & Quick Calculator ---
 function continueAdding() {
     formState.rawAmount = '0';
     document.getElementById('txNoteInput').value = '';
@@ -602,39 +785,49 @@ function goToDashboardAfterSave() {
 function renderSettings() {
     const settings = getSettings();
     document.getElementById('settingRateInput').value = settings.exchangeRate || 4100;
+    document.getElementById('settingBudgetInput').value = settings.monthlyBudgetUSD || 300;
     document.getElementById('settingSoundToggle').checked = settings.soundEnabled;
     document.getElementById('settingHapticToggle').checked = settings.hapticEnabled;
+    if (currentUser) document.getElementById('settingsUserEmail').innerText = currentUser.email;
 }
 
 function saveSettingsForm() {
     const rateVal = Number(document.getElementById('settingRateInput').value) || 4100;
+    const budgetVal = Number(document.getElementById('settingBudgetInput').value) || 300;
     const soundVal = document.getElementById('settingSoundToggle').checked;
     const hapticVal = document.getElementById('settingHapticToggle').checked;
 
     localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify({
-        exchangeRate: rateVal, soundEnabled: soundVal, hapticEnabled: hapticVal
+        exchangeRate: rateVal, monthlyBudgetUSD: budgetVal, soundEnabled: soundVal, hapticEnabled: hapticVal
     }));
     playRoyalFeedback('success');
-    alert('បានរក្សាទុកការកំណត់ជោគជ័យ!');
+    showToast('បានរក្សាទុកការកំណត់ជោគជ័យ!', 'success');
     loadAndRenderDashboard();
 }
 
-function clearAllData() {
-    alert('ដើម្បីលុបទិន្នន័យ អ្នកត្រូវចូលទៅកាន់ផ្ទាំងគ្រប់គ្រង (Dashboard) របស់ Supabase ។ (អ្នកអាចលុបប្រតិបត្តិការម្តងមួយៗនៅក្នុងទំព័រដើមបាន)');
+function exportToCSV() {
+    const list = getMonthlyTransactions();
+    if (list.length === 0) return showToast('មិនមានទិន្នន័យសម្រាប់ទាញយកទេ!', 'error');
+
+    let csv = '\uFEFFDate,Type,Category,Amount,Currency,Account,Note\n';
+    list.forEach(t => {
+        const d = t.created_at ? new Date(t.created_at).toLocaleDateString('en-CA') : '';
+        const note = (t.note || '').replace(/,/g, ' ');
+        csv += `${d},${t.type},"${t.category}",${t.amount},${t.currency},"${t.account}","${note}"\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Sovann_Ledger_${selectedDate.getFullYear()}_${selectedDate.getMonth() + 1}.csv`;
+    a.click();
+    showToast('បានទាញយកឯកសារ CSV រួចរាល់!', 'success');
 }
 
-function testFeedback() {
-    playRoyalFeedback('success');
-}
-
+function testFeedback() { playRoyalFeedback('success'); }
 function toggleSyncModal(show) {
-    const modal = document.getElementById('syncModal');
-    if (show) modal.classList.remove('hidden');
-    else modal.classList.add('hidden');
-}
-
-function installPWA() {
-    alert('ដើម្បីដំឡើងលើទូរស័ព្ទ៖\n- លើ Android: ចុចសញ្ញាចុចបី (⋮) -> ជ្រើសរើស "Add to Home screen"\n- លើ iOS/iPhone: ចុច Share (⎋) -> ជ្រើសរើស "Add to Home Screen"');
+    document.getElementById('syncModal').classList.toggle('hidden', !show);
 }
 
 const qcUSD = document.getElementById('quickCalcUSD');
@@ -648,7 +841,7 @@ qcKHR.addEventListener('input', () => {
     qcUSD.value = (Number(qcKHR.value || 0) / rate).toFixed(2);
 });
 
-// --- ពេលបើកកម្មវិធីដំបូង (On Load) ---
+// --- On Load ---
 initDataStore();
 updateFormAmountDisplay();
 checkUserSession();
